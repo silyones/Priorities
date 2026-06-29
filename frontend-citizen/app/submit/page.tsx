@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
-import { API_BASE, MP_APP_URL } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 
 function detectLanguage(text: string): string {
   if (/[ऀ-ॿ]/.test(text)) return "Hindi";
@@ -71,21 +71,24 @@ export default function SubmitPage() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
-        <div className="mx-auto max-w-7xl">
-          <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
-          <p className="mt-0.5 text-sm text-ink-muted">Type or speak in any language · self-submit or relay on behalf of someone</p>
-        </div>
-      </div>
-      <div className="container-pp py-8">
-        <AnimatePresence mode="wait">
-          {status !== "done" ? (
-            <motion.div
-              key="form"
-              exit={{ opacity: 0, y: -20 }}
-              className="mx-auto max-w-2xl"
-            >
-              <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
+      <AnimatePresence mode="wait">
+        {status !== "done" ? (
+          <>
+            <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
+              <div className="mx-auto max-w-7xl">
+                <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  Type or speak in any language · self-submit or relay on behalf of someone
+                </p>
+              </div>
+            </div>
+            <div className="container-pp py-8">
+              <motion.div
+                key="form"
+                exit={{ opacity: 0, y: -20 }}
+                className="mx-auto max-w-2xl"
+              >
+                <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
                   <div className="relative grid grid-cols-2 gap-1 rounded-2xl bg-cream p-1">
                     <ModeTab
                       active={mode === "self"}
@@ -196,12 +199,13 @@ export default function SubmitPage() {
                     No tracking number, no status, no timeline — just an honest acknowledgment.
                   </p>
                 </form>
-            </motion.div>
-          ) : (
-            <Acknowledgment key="ack" ack={ack} onReset={reset} showcaseUrl={`${MP_APP_URL}/showcase`} />
-          )}
-        </AnimatePresence>
-      </div>
+              </motion.div>
+            </div>
+          </>
+        ) : (
+          <Acknowledgment key="ack" ack={ack} onReset={reset} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -265,19 +269,17 @@ function Field({
 function Acknowledgment({
   ack,
   onReset,
-  showcaseUrl,
 }: {
   ack: { language: string; joined: boolean } | null;
   onReset: () => void;
-  showcaseUrl: string;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="mx-auto flex max-w-lg flex-col items-center pt-6 text-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-5 py-16 text-center"
     >
-      <div className="relative mb-8 flex h-28 w-28 items-center justify-center">
+      <div className="relative mb-10 flex h-28 w-28 items-center justify-center">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
@@ -291,7 +293,7 @@ function Acknowledgment({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-tag-teal-text text-surface-white shadow-glow-teal"
+          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-accent text-surface-white shadow-glow"
         >
           <motion.svg viewBox="0 0 24 24" className="h-9 w-9" fill="none">
             <motion.path
@@ -309,32 +311,30 @@ function Acknowledgment({
       </div>
 
       <Reveal delay={0.2}>
-        <h2 className="display text-3xl font-semibold text-ink">Your voice has been heard.</h2>
+        <h2 className="display max-w-md text-3xl font-semibold text-ink sm:text-4xl">
+          Your voice has been heard.
+        </h2>
       </Reveal>
       <Reveal delay={0.3}>
-        <p className="mt-3 text-ink-muted">
+        <p className="mx-auto mt-4 max-w-md text-lg text-ink-muted">
           It&apos;s been recorded{ack?.language ? ` in ${ack.language}` : ""} and is now part of a
-          real, visible pattern of demand{" "}
+          real pattern of demand{" "}
           {ack?.joined ? "— it joined others raising the same issue." : "in your constituency."}
         </p>
       </Reveal>
 
       <Reveal delay={0.4}>
-        <div className="mt-6 flex items-center gap-2 rounded-2xl bg-tag-teal-bg px-4 py-3 text-sm text-tag-teal-text">
-          <Check className="h-4 w-4 shrink-0" />
-          That&apos;s the only promise we make — and one we&apos;ll always keep.
+        <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-border-subtle bg-surface-white px-5 py-4 text-sm text-ink-muted">
+          <Check className="mx-auto mb-2 h-5 w-5 text-accent" />
+          No tracking number, no status updates — just an honest acknowledgment. That&apos;s the
+          only promise we make.
         </div>
       </Reveal>
 
       <Reveal delay={0.5}>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button onClick={onReset} className="btn-primary">
-            Raise another voice
-          </button>
-          <a href={showcaseUrl} className="btn-ghost">
-            See outcomes others helped create
-          </a>
-        </div>
+        <button onClick={onReset} className="btn-primary mt-10 px-8 py-4 text-base">
+          Submit another voice
+        </button>
       </Reveal>
     </motion.div>
   );
