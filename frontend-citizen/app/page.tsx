@@ -27,7 +27,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-cream">
       {/* Hero */}
       <section className="container-pp flex flex-col items-center px-5 pb-20 pt-16 text-center sm:px-8 sm:pt-24 sm:pb-28">
-        <p className="label mb-4">Rajgarh Constituency</p>
+        <p className="label mb-4">Bengaluru North Constituency</p>
         <h1 className="display max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-6xl">
           Your voice, heard by your MP
         </h1>

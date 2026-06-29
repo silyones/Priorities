@@ -11,7 +11,7 @@ export function Logo({ className = "" }: { className?: string }) {
           <circle cx="12" cy="20" r="1.4" fill="currentColor" />
         </svg>
       </span>
-      <span className="text-[15px] font-semibold leading-none tracking-tight text-white">
+      <span className="text-[15px] font-semibold leading-none tracking-tight text-ink">
         People&apos;s
         <span className="block text-[15px] font-bold text-accent">Priorities</span>
       </span>
