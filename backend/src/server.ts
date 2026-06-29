@@ -7,6 +7,7 @@ import cors from "cors";
 import multer from "multer";
 import { getClusters, getCluster, getShowcase, getStats, submit, actOnCluster } from "./store";
 import { transcribeAudio } from "./sarvam";
+import { saveSubmissionToFirestore } from "./submissions";
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -16,7 +17,7 @@ const upload = multer({
 });
 
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:3000" }));
-app.use(express.json());
+app.use(express.json({ limit: "12mb" }));
 
 // ── POST /api/transcribe (Sarvam Saaras v3 STT) ─────────────────────────────
 app.post("/api/transcribe", upload.single("file"), async (req, res) => {
@@ -39,6 +40,48 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Transcription failed";
     const status = message.includes("SARVAM_API_KEY") ? 503 : 422;
+    return res.status(status).json({ error: message });
+  }
+});
+
+// ── POST /api/submissions (Firestore via Firebase Admin) ────────────────────
+app.post("/api/submissions", async (req, res) => {
+  try {
+    const {
+      submittedFor,
+      name,
+      role,
+      locality,
+      topic,
+      description,
+      imageBase64,
+      latitude,
+      longitude,
+    } = req.body ?? {};
+
+    if (!description?.trim()) {
+      return res.status(400).json({ error: "Description is required" });
+    }
+    if (!["myself", "someone_else"].includes(submittedFor)) {
+      return res.status(400).json({ error: "Invalid submittedFor value" });
+    }
+
+    const result = await saveSubmissionToFirestore({
+      submittedFor,
+      name: name?.trim() ?? "",
+      role: role?.trim() ?? "",
+      locality: locality?.trim() ?? "",
+      topic: topic?.trim() ?? "",
+      description: description.trim(),
+      imageBase64: imageBase64 ?? "",
+      latitude: typeof latitude === "number" ? latitude : null,
+      longitude: typeof longitude === "number" ? longitude : null,
+    });
+
+    return res.json({ ok: true, id: result.id });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Submission failed";
+    const status = message.includes("Firebase") ? 503 : 500;
     return res.status(status).json({ error: message });
   }
 });

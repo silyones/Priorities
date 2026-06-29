@@ -16,8 +16,7 @@ import {
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
 import { fileToBase64 } from "@/lib/fileToBase64";
-import { db } from "@/src/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { saveSubmission } from "@/lib/submissions";
 
 function detectLanguage(text: string): string {
   if (/[ऀ-ॿ]/.test(text)) return "Hindi";
@@ -58,7 +57,7 @@ export default function SubmitPage() {
     try {
       const imageBase64 = photoFile ? await fileToBase64(photoFile) : "";
 
-      await addDoc(collection(db, "submissions"), {
+      await saveSubmission({
         submittedFor: mode === "self" ? "myself" : "someone_else",
         name: assistedPerson.trim(),
         role: role.trim(),
@@ -68,7 +67,6 @@ export default function SubmitPage() {
         imageBase64,
         latitude: coords?.lat ?? null,
         longitude: coords?.lng ?? null,
-        createdAt: serverTimestamp(),
       });
 
       setAck({ language: detectLanguage(text) });
