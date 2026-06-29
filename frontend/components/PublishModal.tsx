@@ -23,8 +23,7 @@ export function PublishModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60] flex items-end justify-center p-4 backdrop-blur-sm sm:items-center"
-          style={{ background: "rgba(0,0,0,0.7)" }}
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/50 p-4 backdrop-blur-sm sm:items-center"
           onClick={onClose}
         >
           <motion.div
@@ -33,33 +32,32 @@ export function PublishModal({
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl p-6"
-            style={{ background: "#1E2330", border: "1px solid rgba(255,255,255,0.1)" }}
+            className="card w-full max-w-md p-6 shadow-lift"
           >
             <div className="flex items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-night-950">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-surface-white">
                 <Megaphone className="h-5 w-5" />
               </span>
-              <button onClick={onClose} className="text-white/30 hover:text-white">
+              <button onClick={onClose} className="text-ink-muted hover:text-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <h3 className="mt-4 text-xl font-bold text-white">Publish a completed outcome</h3>
-            <p className="mt-1.5 text-sm text-white/50">
+            <h3 className="mt-4 text-xl font-bold text-ink">Publish a completed outcome</h3>
+            <p className="mt-1.5 text-sm text-ink-muted">
               This will appear publicly, paired with the demand that justified it. Nothing pending or
               in-progress is ever shown.
             </p>
 
-            <label className="mt-5 block text-sm font-semibold text-white/70">Outcome line</label>
+            <label className="mt-5 block text-sm font-semibold text-ink">Outcome line</label>
             <input
               autoFocus
               value={outcome}
               onChange={(e) => setOutcome(e.target.value)}
               placeholder="e.g. Drain repaired and desilted before monsoon"
-              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-amber-400/50"
+              className="mt-1.5 w-full rounded-xl border border-border-subtle bg-cream px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent/50"
             />
 
-            <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/8 p-3 text-sm text-emerald-300">
+            <div className="mt-4 rounded-xl border border-tag-teal-text/20 bg-tag-teal-bg p-3 text-sm text-tag-teal-text">
               <span className="font-semibold">Preview:</span>{" "}
               {outcome || "Your outcome"} — based on requests from{" "}
               {cluster.affected.toLocaleString("en-IN")} residents.

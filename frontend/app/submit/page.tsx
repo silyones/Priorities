@@ -72,12 +72,11 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Page header */}
-      <div className="border-b px-5 py-5 sm:px-8">
+    <div className="min-h-screen bg-cream">
+      <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
         <div className="mx-auto max-w-7xl">
-          <h1 className="text-xl font-semibold text-white">Submit a Voice</h1>
-          <p className="mt-0.5 text-sm text-white/50">Type or speak in any language · self-submit or relay on behalf of someone</p>
+          <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
+          <p className="mt-0.5 text-sm text-ink-muted">Type or speak in any language · self-submit or relay on behalf of someone</p>
         </div>
       </div>
       <div className="container-pp py-8">
@@ -90,7 +89,7 @@ export default function SubmitPage() {
             >
               <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
                   {/* mode toggle */}
-                  <div className="relative grid grid-cols-2 gap-1 rounded-2xl bg-white/5 p-1">
+                  <div className="relative grid grid-cols-2 gap-1 rounded-2xl bg-cream p-1">
                     <ModeTab
                       active={mode === "self"}
                       onClick={() => setMode("self")}
@@ -127,7 +126,7 @@ export default function SubmitPage() {
                             onChange={setLocality}
                           />
                         </div>
-                        <p className="mt-2 text-xs text-white/40">
+                        <p className="mt-2 text-xs text-ink-muted">
                           Relay submissions are flagged for transparency, then processed identically
                           — no second-class data path.
                         </p>
@@ -138,7 +137,7 @@ export default function SubmitPage() {
                   {/* textarea */}
                   <div className="mt-5">
                     <div className="mb-2 flex items-center justify-between">
-                      <label className="text-sm font-semibold text-white/80">
+                      <label className="text-sm font-semibold text-ink">
                         {mode === "relay" ? "What did they describe?" : "Describe the need"}
                       </label>
                       <VoiceButton onTranscript={setText} />
@@ -149,7 +148,7 @@ export default function SubmitPage() {
                         onChange={(e) => setText(e.target.value)}
                         rows={5}
                         placeholder="Type here, or tap “Speak instead”. Any language is fine — we detect it automatically."
-                        className="w-full resize-none rounded-2xl border border-white/8 bg-night-800/80 p-4 text-[15px] leading-relaxed text-white outline-none transition-all placeholder:text-white/30 focus:border-forest-400 focus:ring-4 focus:ring-forest-100"
+                        className="w-full resize-none rounded-2xl border border-border-subtle bg-cream p-4 text-[15px] leading-relaxed text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
                       />
                       <AnimatePresence>
                         {language && (
@@ -157,9 +156,9 @@ export default function SubmitPage() {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0 }}
-                            className="pill absolute bottom-3 right-3 bg-night-800"
+                            className="pill absolute bottom-3 right-3"
                           >
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-tag-teal-text" />
                             Detected: {language}
                           </motion.span>
                         )}
@@ -169,14 +168,14 @@ export default function SubmitPage() {
 
                   {/* example chips */}
                   <div className="mt-4">
-                    <span className="text-xs font-medium text-white/40">Try an example:</span>
+                    <span className="text-xs font-medium text-ink-muted">Try an example:</span>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {EXAMPLES.map((ex, i) => (
                         <button
                           key={i}
                           type="button"
                           onClick={() => setText(ex)}
-                          className="max-w-full truncate rounded-full border border-white/8 bg-night-800/70 px-3 py-1.5 text-xs text-white/50 transition-colors hover:border-forest-300 hover:text-white/90"
+                          className="max-w-full truncate rounded-full border border-border-subtle bg-cream px-3 py-1.5 text-xs text-ink-muted transition-colors hover:border-accent/40 hover:text-ink"
                           style={{ maxWidth: "100%" }}
                         >
                           {ex.length > 46 ? ex.slice(0, 46) + "…" : ex}
@@ -197,7 +196,7 @@ export default function SubmitPage() {
                     )}
                   </button>
 
-                  <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-white/40">
+                  <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-ink-muted">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     No tracking number, no status, no timeline — just an honest acknowledgment.
                   </p>
@@ -228,13 +227,13 @@ function ModeTab({
       type="button"
       onClick={onClick}
       className={`relative z-10 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors ${
-        active ? "text-white" : "text-white/40 hover:text-white/70"
+        active ? "text-ink" : "text-ink-muted hover:text-ink"
       }`}
     >
       {active && (
         <motion.span
           layoutId="mode-pill"
-          className="absolute inset-0 -z-10 rounded-xl bg-night-800 shadow-soft"
+          className="absolute inset-0 -z-10 rounded-xl bg-surface-white shadow-soft"
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
         />
       )}
@@ -257,12 +256,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-white/80">{label}</span>
+      <span className="text-sm font-semibold text-ink">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-xl border border-white/8 bg-night-800/80 px-3.5 py-2.5 text-sm text-white outline-none transition-all placeholder:text-white/30 focus:border-forest-400 focus:ring-4 focus:ring-forest-100"
+        className="mt-1.5 w-full rounded-xl border border-border-subtle bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
       />
     </label>
   );
@@ -286,7 +285,7 @@ function Acknowledgment({
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="absolute inset-0 rounded-full bg-emerald-400/30"
+            className="absolute inset-0 rounded-full bg-tag-teal-bg"
             initial={{ scale: 0.6, opacity: 0.7 }}
             animate={{ scale: 2.2, opacity: 0 }}
             transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }}
@@ -296,7 +295,7 @@ function Acknowledgment({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-glow"
+          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-tag-teal-text text-surface-white shadow-glow-teal"
         >
           <motion.svg viewBox="0 0 24 24" className="h-9 w-9" fill="none">
             <motion.path
@@ -314,10 +313,10 @@ function Acknowledgment({
       </div>
 
       <Reveal delay={0.2}>
-        <h2 className="display text-3xl font-semibold text-white">Your voice has been heard.</h2>
+        <h2 className="display text-3xl font-semibold text-ink">Your voice has been heard.</h2>
       </Reveal>
       <Reveal delay={0.3}>
-        <p className="mt-3 text-white/50">
+        <p className="mt-3 text-ink-muted">
           It&apos;s been recorded{ack?.language ? ` in ${ack.language}` : ""} and is now part of a
           real, visible pattern of demand{" "}
           {ack?.joined ? "— it joined others raising the same issue." : "in your constituency."}
@@ -325,7 +324,7 @@ function Acknowledgment({
       </Reveal>
 
       <Reveal delay={0.4}>
-        <div className="mt-6 flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div className="mt-6 flex items-center gap-2 rounded-2xl bg-tag-teal-bg px-4 py-3 text-sm text-tag-teal-text">
           <Check className="h-4 w-4 shrink-0" />
           That&apos;s the only promise we make — and one we&apos;ll always keep.
         </div>

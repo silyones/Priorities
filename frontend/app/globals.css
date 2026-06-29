@@ -6,19 +6,34 @@
   --font-sans:    "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
-  --bg:       #0D0F14;
-  --surface:  #161A23;
-  --surface2: #1E2330;
-  --border:   rgba(255,255,255,0.07);
-  --muted:    rgba(255,255,255,0.45);
+
+  /* Design tokens — cream / black / rust palette */
+  --bg-cream:        #F3EEE4;
+  --surface-white:   #FFFFFF;
+  --ink:             #141414;
+  --ink-muted:       #6B6B68;
+  --accent:          #C2502E;
+  --accent-hover:    #A8401F;
+  --border-subtle:   #E7E2D6;
+  --tag-red-bg:      #F6D9D2;
+  --tag-red-text:    #7A2A1A;
+  --tag-teal-bg:     #D7E8E2;
+  --tag-teal-text:   #1F5A4D;
+  --tag-orange-bg:   #F5E2C2;
+  --tag-orange-text: #7A5418;
+  --tag-blue-bg:     #DCE3E8;
+  --tag-blue-text:   #344A5E;
+  --tag-pink-bg:     #F3D9E4;
+  --tag-pink-text:   #7A2A4A;
+  --warning-bg:      #FBEFD2;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
 html { scroll-behavior: smooth; }
 
 body {
-  background: #0D0F14;
-  color: #F1F3F7;
+  background: var(--bg-cream);
+  color: var(--ink);
   font-family: var(--font-sans, "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -47,67 +62,56 @@ body {
 
   .label {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
-    @apply text-[11px] font-medium uppercase tracking-[0.18em];
-    color: rgba(255,255,255,0.4);
+    @apply text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted;
   }
 
   .card {
-    @apply rounded-2xl;
-    background: #161A23;
-    border: 1px solid rgba(255,255,255,0.07);
+    @apply rounded-2xl border border-border-subtle bg-surface-white;
   }
 
   .hairline {
-    border-color: rgba(255,255,255,0.07);
+    @apply border-border-subtle;
   }
 
-  .accent {
-    @apply italic;
-    color: #FBBF24;
+  .accent-text {
+    @apply italic text-accent;
   }
 
-  /* Buttons — written out fully, no @apply chaining */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.97] focus:outline-none;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.97] focus:outline-none bg-white text-black hover:-translate-y-0.5;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.97] focus:outline-none bg-accent text-surface-white hover:-translate-y-0.5 hover:bg-accent-hover;
+    box-shadow: 0 4px 16px rgba(194, 80, 46, 0.22);
   }
 
   .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none hover:-translate-y-0.5;
-    background: #F5C518;
-    color: #0D0F14;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition-all duration-200 active:scale-[0.97] focus:outline-none hover:-translate-y-0.5 bg-accent text-surface-white hover:bg-accent-hover;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.97] focus:outline-none;
-    border: 1px solid rgba(255,255,255,0.12);
-    color: rgba(255,255,255,0.7);
-    background: transparent;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.97] focus:outline-none border border-border-subtle bg-transparent text-ink-muted;
   }
   .btn-ghost:hover {
-    background: rgba(255,255,255,0.08);
-    color: white;
+    @apply bg-cream text-ink;
   }
 
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.6);
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-cream px-3 py-1 text-xs font-medium text-ink-muted;
   }
 
-  /* Skeleton shimmer */
+  .warning-banner {
+    @apply rounded-r-xl border-l-4 border-accent bg-warning-bg px-5 py-4 text-sm text-ink;
+  }
+
   .shimmer {
     animation: shimmer 1.6s ease-in-out infinite;
     background: linear-gradient(
       90deg,
-      rgba(255,255,255,0.03) 0%,
-      rgba(255,255,255,0.07) 50%,
-      rgba(255,255,255,0.03) 100%
+      rgba(231, 226, 214, 0.4) 0%,
+      rgba(231, 226, 214, 0.8) 50%,
+      rgba(231, 226, 214, 0.4) 100%
     );
     background-size: 200% 100%;
   }

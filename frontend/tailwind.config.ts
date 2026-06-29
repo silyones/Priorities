@@ -8,6 +8,41 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Cream / black / rust design tokens ───────────────────────
+        cream: "var(--bg-cream)",
+        "surface-white": "var(--surface-white)",
+        ink: {
+          DEFAULT: "var(--ink)",
+          muted: "var(--ink-muted)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+        },
+        "border-subtle": "var(--border-subtle)",
+        "tag-red": {
+          bg: "var(--tag-red-bg)",
+          text: "var(--tag-red-text)",
+        },
+        "tag-teal": {
+          bg: "var(--tag-teal-bg)",
+          text: "var(--tag-teal-text)",
+        },
+        "tag-orange": {
+          bg: "var(--tag-orange-bg)",
+          text: "var(--tag-orange-text)",
+        },
+        "tag-blue": {
+          bg: "var(--tag-blue-bg)",
+          text: "var(--tag-blue-text)",
+        },
+        "tag-pink": {
+          bg: "var(--tag-pink-bg)",
+          text: "var(--tag-pink-text)",
+        },
+        warning: {
+          bg: "var(--warning-bg)",
+        },
         // ── Dark surface family ──────────────────────────────────────
         night: {
           DEFAULT: "#0D0F14",
@@ -88,10 +123,10 @@ const config: Config = {
         "4xl": "2rem",
       },
       boxShadow: {
-        soft:  "0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.30)",
-        lift:  "0 16px 48px -8px rgba(0,0,0,0.60)",
-        glow:  "0 0 0 1px rgba(245,197,24,0.15), 0 20px 48px -16px rgba(245,197,24,0.20)",
-        "glow-jade": "0 0 0 1px rgba(74,222,128,0.15), 0 16px 40px -12px rgba(74,222,128,0.25)",
+        soft:  "0 1px 3px rgba(20,20,20,0.06), 0 8px 24px rgba(20,20,20,0.08)",
+        lift:  "0 16px 48px -8px rgba(20,20,20,0.12)",
+        glow:  "0 0 0 1px rgba(194,80,46,0.12), 0 12px 32px -8px rgba(194,80,46,0.18)",
+        "glow-teal": "0 0 0 1px rgba(31,90,77,0.12), 0 12px 32px -8px rgba(31,90,77,0.15)",
       },
       keyframes: {
         "pulse-ring": {

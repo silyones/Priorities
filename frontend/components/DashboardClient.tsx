@@ -33,23 +33,17 @@ export function DashboardClient({
 
   return (
     <motion.div
-      className="min-h-screen"
-      style={{ background: "#0D0F14" }}
+      className="min-h-screen bg-cream"
       initial="hidden"
       animate="show"
       variants={{ show: { transition: { staggerChildren: 0.08 } } }}
       transition={{ duration: 0.4 }}
     >
-      {/* ── Page header ─────────────────────────────────────────── */}
-      <motion.div
-        variants={up}
-        className="border-b px-5 py-5 sm:px-8"
-        style={{ borderColor: "rgba(255,255,255,0.07)" }}
-      >
+      <motion.div variants={up} className="border-b border-border-subtle px-5 py-5 sm:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div>
             <p className="label">People's Priorities · Rajgarh Constituency</p>
-            <h1 className="mt-1 text-2xl font-bold text-white">Constituency Dashboard</h1>
+            <h1 className="mt-1 text-2xl font-bold text-ink">Constituency Dashboard</h1>
           </div>
           <Link href="/submit" className="btn-accent hidden sm:inline-flex">
             <Mic className="h-4 w-4" /> Submit a voice
@@ -59,51 +53,46 @@ export function DashboardClient({
 
       <div className="mx-auto max-w-7xl space-y-4 px-5 py-6 sm:px-8">
 
-        {/* ── Stat tiles ──────────────────────────────────────────── */}
         <motion.div variants={up} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile icon={<Users className="h-5 w-5" />} label="Voices counted"
-            value={stats?.totalVoices.toLocaleString("en-IN") ?? "—"} accent="amber" />
+            value={stats?.totalVoices.toLocaleString("en-IN") ?? "—"} accent="accent" />
           <StatTile icon={<TrendingUp className="h-5 w-5" />} label="Demand themes"
-            value={stats?.themes ?? "—"} accent="jade" />
+            value={stats?.themes ?? "—"} accent="teal" />
           <StatTile icon={<Map className="h-5 w-5" />} label="Wards mapped"
-            value={stats?.wards ?? "—"} accent="white" />
+            value={stats?.wards ?? "—"} accent="ink" />
           <StatTile icon={<Radio className="h-5 w-5" />} label="Via relay"
-            value={stats ? `${Math.round(stats.relayShare * 100)}%` : "—"} accent="coral" />
+            value={stats ? `${Math.round(stats.relayShare * 100)}%` : "—"} accent="rust" />
         </motion.div>
 
-        {/* ── Main bento ──────────────────────────────────────────── */}
         <motion.div variants={up} className="grid gap-4 lg:grid-cols-3">
 
-          {/* Priority themes — 2 cols */}
           <div className="card lg:col-span-2">
-            <div className="flex items-center justify-between border-b px-5 py-4"
-              style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+            <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-widest text-white/40">Live ranking</p>
-                <p className="mt-0.5 text-base font-bold text-white">Priority themes</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-ink-muted">Live ranking</p>
+                <p className="mt-0.5 text-base font-bold text-ink">Priority themes</p>
               </div>
               <Link href="/insights"
-                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white"
-                style={{ background: "rgba(255,255,255,0.05)" }}>
+                className="flex items-center gap-1 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-border-subtle hover:text-ink">
                 Full analysis <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
-            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+            <div className="divide-y divide-border-subtle">
               {pending.slice(0, 8).map((c, i) => (
                 <motion.div
                   key={c.id}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
-                  className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.03]"
+                  className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60"
                 >
-                  <span className="w-5 font-mono text-xs text-white/25">{i + 1}</span>
+                  <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
                   <StatusDot status={c.status} pulse={c.status === "new"} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-white">{c.title}</div>
+                    <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                      <span className="flex items-center gap-0.5 text-xs text-white/40">
+                      <span className="flex items-center gap-0.5 text-xs text-ink-muted">
                         <MapPin className="h-3 w-3" /> {c.locality}
                       </span>
                       <UrgencyTag urgency={c.urgency} />
@@ -111,13 +100,12 @@ export function DashboardClient({
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <div className="text-right">
-                      <div className="font-mono text-sm font-bold text-white">
+                      <div className="font-mono text-sm font-bold text-ink">
                         {c.affected.toLocaleString("en-IN")}
                       </div>
-                      <div className="text-[9px] uppercase tracking-widest text-white/30">voices</div>
+                      <div className="text-[9px] uppercase tracking-widest text-ink-muted">voices</div>
                     </div>
-                    <div className="w-8 rounded-lg py-0.5 text-center font-mono text-sm font-bold text-amber-400"
-                      style={{ background: "rgba(245,197,24,0.12)" }}>
+                    <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
                       {c.score}
                     </div>
                   </div>
@@ -125,72 +113,69 @@ export function DashboardClient({
               ))}
             </div>
 
-            <div className="border-t px-5 py-3"
-              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}>
+            <div className="border-t border-border-subtle bg-cream/50 px-5 py-3">
               <Link href="/mp"
-                className="flex items-center gap-1.5 text-xs font-medium text-white/40 transition-colors hover:text-white">
+                className="flex items-center gap-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink">
                 Open triage tool to action these themes
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
 
-          {/* Right column */}
           <div className="flex flex-col gap-4">
 
-            {/* Action tiles */}
             <div className="grid grid-cols-2 gap-3">
               <ActionTile href="/submit" icon={<Mic className="h-6 w-6" />}
-                label="Submit Voice" desc="Type or speak" bg="#F5C518" fg="#0D0F14" descColor="#3a3000" />
+                label="Submit Voice" desc="Type or speak"
+                className="bg-accent text-surface-white" descClass="text-white/80" />
               <ActionTile href="/mp" icon={<Layers className="h-6 w-6" />}
-                label="MP Triage" desc={`${newThemes.length} new themes`} bg="#4ADE80" fg="#0D0F14" descColor="#1a4a2a" />
+                label="MP Triage" desc={`${newThemes.length} new themes`}
+                className="bg-tag-teal-bg text-tag-teal-text" descClass="text-tag-teal-text/80" />
               <ActionTile href="/showcase" icon={<Megaphone className="h-6 w-6" />}
-                label="Showcase" desc={`${showcaseItems.length} published`} bg="#F87171" fg="#0D0F14" descColor="#4a1010" />
+                label="Showcase" desc={`${showcaseItems.length} published`}
+                className="bg-tag-pink-bg text-tag-pink-text" descClass="text-tag-pink-text/80" />
               <ActionTile href="/insights" icon={<FlaskConical className="h-6 w-6" />}
-                label="Insights" desc="Hotspot map" bg="#1E2330" fg="#F1F3F7" descColor="rgba(255,255,255,0.4)" />
+                label="Insights" desc="Hotspot map"
+                className="bg-ink text-surface-white" descClass="text-white/60" />
             </div>
 
-            {/* Demand gap */}
             {gapItems.length > 0 && (
-              <div className="rounded-2xl border p-4"
-                style={{ borderColor: "rgba(245,197,24,0.2)", background: "rgba(245,197,24,0.05)" }}>
+              <div className="warning-banner rounded-2xl p-4">
                 <div className="mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                  <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-accent" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-accent">
                     Demand gap — internal only
                   </p>
                 </div>
                 <div className="space-y-2">
                   {gapItems.map((c) => (
-                    <div key={c.id} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.04)" }}>
-                      <div className="text-sm font-semibold text-white">{c.title}</div>
-                      <div className="mt-0.5 text-xs text-amber-400/80">{c.sanctionedProject}</div>
+                    <div key={c.id} className="rounded-xl bg-surface-white/60 p-3">
+                      <div className="text-sm font-semibold text-ink">{c.title}</div>
+                      <div className="mt-0.5 text-xs text-accent">{c.sanctionedProject}</div>
                     </div>
                   ))}
                 </div>
-                <p className="mt-3 text-[11px] text-white/30">Never published externally · MP view only</p>
+                <p className="mt-3 text-[11px] text-ink-muted">Never published externally · MP view only</p>
               </div>
             )}
 
-            {/* Recent outcomes */}
             {showcaseItems.length > 0 && (
               <div className="card flex-1">
-                <div className="flex items-center justify-between border-b px-4 py-3.5"
-                  style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                  <p className="text-sm font-bold text-white">Recent outcomes</p>
-                  <Link href="/showcase" className="text-xs font-medium text-amber-400 hover:text-amber-300">
+                <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3.5">
+                  <p className="text-sm font-bold text-ink">Recent outcomes</p>
+                  <Link href="/showcase" className="text-xs font-medium text-accent hover:text-accent-hover">
                     View all →
                   </Link>
                 </div>
-                <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                <div className="divide-y divide-border-subtle">
                   {showcaseItems.slice(0, 4).map((c) => (
                     <div key={c.id} className="flex items-start gap-3 px-4 py-3">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tag-teal-text" />
                       <div>
-                        <div className="text-sm font-medium leading-snug text-white">
+                        <div className="text-sm font-medium leading-snug text-ink">
                           {c.outcome ?? c.title}
                         </div>
-                        <div className="mt-0.5 text-xs text-white/40">
+                        <div className="mt-0.5 text-xs text-ink-muted">
                           {c.affected.toLocaleString("en-IN")} residents · {c.locality}
                         </div>
                       </div>
@@ -202,15 +187,13 @@ export function DashboardClient({
           </div>
         </motion.div>
 
-        {/* ── Status legend ───────────────────────────────────────── */}
         <motion.div
           variants={up}
-          className="flex flex-wrap items-center gap-4 rounded-2xl border px-5 py-3.5 text-xs"
-          style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}
+          className="flex flex-wrap items-center gap-4 rounded-2xl border border-border-subtle bg-surface-white px-5 py-3.5 text-xs"
         >
-          <span className="font-bold uppercase tracking-widest text-white/30">Status</span>
+          <span className="font-bold uppercase tracking-widest text-ink-muted">Status</span>
           {(["new", "forwarded", "handling", "info", "published"] as const).map((s) => (
-            <span key={s} className="flex items-center gap-1.5 text-white/50">
+            <span key={s} className="flex items-center gap-1.5 text-ink-muted">
               <StatusDot status={s} />
               {STATUS_META[s].label}
             </span>
@@ -221,39 +204,41 @@ export function DashboardClient({
   );
 }
 
-/* ── Pieces ─────────────────────────────────────────────────────── */
-
 function StatTile({ icon, label, value, accent }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
-  accent: "amber" | "jade" | "coral" | "white";
+  accent: "accent" | "teal" | "ink" | "rust";
 }) {
-  const color = { amber: "#F5C518", jade: "#4ADE80", coral: "#F87171", white: "#ffffff" }[accent];
+  const valueClass = {
+    accent: "text-accent",
+    teal:   "text-tag-teal-text",
+    ink:    "text-ink",
+    rust:   "text-tag-red-text",
+  }[accent];
   return (
     <div className="card px-5 py-5">
-      <div className="flex items-center gap-1.5" style={{ color }}>
+      <div className={`flex items-center gap-1.5 ${valueClass}`}>
         {icon}
-        <span className="text-[11px] font-medium uppercase tracking-wider text-white/40">{label}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">{label}</span>
       </div>
-      <div className="mt-3 font-mono text-3xl font-bold" style={{ color }}>{value}</div>
+      <div className={`mt-3 font-mono text-3xl font-bold ${valueClass}`}>{value}</div>
     </div>
   );
 }
 
-function ActionTile({ href, icon, label, desc, bg, fg, descColor }: {
+function ActionTile({ href, icon, label, desc, className, descClass }: {
   href: string;
   icon: React.ReactNode;
   label: string;
   desc: string;
-  bg: string;
-  fg: string;
-  descColor: string;
+  className: string;
+  descClass: string;
 }) {
   return (
     <Link href={href}
-      className="group flex flex-col justify-between rounded-2xl p-4 transition-all hover:-translate-y-0.5"
-      style={{ background: bg, color: fg, minHeight: "110px", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}
+      className={`group flex flex-col justify-between rounded-2xl p-4 shadow-soft transition-all hover:-translate-y-0.5 ${className}`}
+      style={{ minHeight: "110px" }}
     >
       <div className="flex items-start justify-between">
         <span>{icon}</span>
@@ -261,7 +246,7 @@ function ActionTile({ href, icon, label, desc, bg, fg, descColor }: {
       </div>
       <div>
         <div className="mt-3 text-sm font-bold leading-tight">{label}</div>
-        <div className="mt-0.5 text-xs" style={{ color: descColor }}>{desc}</div>
+        <div className={`mt-0.5 text-xs ${descClass}`}>{desc}</div>
       </div>
     </Link>
   );
