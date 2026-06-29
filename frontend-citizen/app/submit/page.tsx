@@ -12,10 +12,8 @@ import {
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, MP_APP_URL } from "@/lib/api";
 
-// detectLanguage is the one sanctioned frontend/backend code share (spec §2.5)
-// — a pure, side-effect-free function for live UX feedback only.
 function detectLanguage(text: string): string {
   if (/[ऀ-ॿ]/.test(text)) return "Hindi";
   if (/[஀-௿]/.test(text)) return "Tamil";
@@ -88,7 +86,6 @@ export default function SubmitPage() {
               className="mx-auto max-w-2xl"
             >
               <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
-                  {/* mode toggle */}
                   <div className="relative grid grid-cols-2 gap-1 rounded-2xl bg-cream p-1">
                     <ModeTab
                       active={mode === "self"}
@@ -134,7 +131,6 @@ export default function SubmitPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* textarea */}
                   <div className="mt-5">
                     <div className="mb-2 flex items-center justify-between">
                       <label className="text-sm font-semibold text-ink">
@@ -166,7 +162,6 @@ export default function SubmitPage() {
                     </div>
                   </div>
 
-                  {/* example chips */}
                   <div className="mt-4">
                     <span className="text-xs font-medium text-ink-muted">Try an example:</span>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -203,7 +198,7 @@ export default function SubmitPage() {
                 </form>
             </motion.div>
           ) : (
-            <Acknowledgment key="ack" ack={ack} onReset={reset} />
+            <Acknowledgment key="ack" ack={ack} onReset={reset} showcaseUrl={`${MP_APP_URL}/showcase`} />
           )}
         </AnimatePresence>
       </div>
@@ -270,9 +265,11 @@ function Field({
 function Acknowledgment({
   ack,
   onReset,
+  showcaseUrl,
 }: {
   ack: { language: string; joined: boolean } | null;
   onReset: () => void;
+  showcaseUrl: string;
 }) {
   return (
     <motion.div
@@ -280,7 +277,6 @@ function Acknowledgment({
       animate={{ opacity: 1, scale: 1 }}
       className="mx-auto flex max-w-lg flex-col items-center pt-6 text-center"
     >
-      {/* animated check with expanding rings */}
       <div className="relative mb-8 flex h-28 w-28 items-center justify-center">
         {[0, 1, 2].map((i) => (
           <motion.span
@@ -335,7 +331,7 @@ function Acknowledgment({
           <button onClick={onReset} className="btn-primary">
             Raise another voice
           </button>
-          <a href="/showcase" className="btn-ghost">
+          <a href={showcaseUrl} className="btn-ghost">
             See outcomes others helped create
           </a>
         </div>

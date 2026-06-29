@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowUpRight, Mic, Layers, Megaphone, FlaskConical,
+  ArrowUpRight, Layers, Megaphone, FlaskConical,
   MapPin, AlertTriangle, CheckCircle2, Users, Radio, Map, TrendingUp,
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
@@ -45,9 +45,6 @@ export function DashboardClient({
             <p className="label">People's Priorities · Rajgarh Constituency</p>
             <h1 className="mt-1 text-2xl font-bold text-ink">Constituency Dashboard</h1>
           </div>
-          <Link href="/submit" className="btn-accent hidden sm:inline-flex">
-            <Mic className="h-4 w-4" /> Submit a voice
-          </Link>
         </div>
       </motion.div>
 
@@ -125,9 +122,6 @@ export function DashboardClient({
           <div className="flex flex-col gap-4">
 
             <div className="grid grid-cols-2 gap-3">
-              <ActionTile href="/submit" icon={<Mic className="h-6 w-6" />}
-                label="Submit Voice" desc="Type or speak"
-                className="bg-accent text-surface-white" descClass="text-white/80" />
               <ActionTile href="/mp" icon={<Layers className="h-6 w-6" />}
                 label="MP Triage" desc={`${newThemes.length} new themes`}
                 className="bg-tag-teal-bg text-tag-teal-text" descClass="text-tag-teal-text/80" />

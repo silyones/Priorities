@@ -37,13 +37,31 @@ peoples-priorities/
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── frontend/                  ← Next.js 14 App Router (port 3000)
+├── frontend-citizen/          ← Citizen Next.js app (port 3000)
+│   ├── app/
+│   │   ├── layout.tsx         ← Root layout: SiteNav + fonts
+│   │   ├── globals.css        ← Tailwind + cream/black/rust design tokens
+│   │   ├── page.tsx           ← Placeholder home (Phase 4 — real content TBD)
+│   │   ├── loading.tsx
+│   │   └── submit/page.tsx    ← Citizen/relay intake form
+│   ├── components/
+│   │   ├── VoiceButton.tsx    ← Web Speech API voice capture
+│   │   ├── SiteNav.tsx        ← Citizen nav (Home + Submit)
+│   │   ├── Logo.tsx
+│   │   ├── motion.tsx         ← Reveal primitive (submit acknowledgment)
+│   │   └── ui/Tag.tsx         ← Shared tag pill component
+│   ├── lib/
+│   │   └── api.ts             ← API_BASE + MP_APP_URL
+│   ├── .env.local             ← NEXT_PUBLIC_API_URL + NEXT_PUBLIC_MP_APP_URL
+│   ├── tailwind.config.ts
+│   └── package.json
+│
+├── frontend/                  ← MP office Next.js app (port 3002)
 │   ├── app/
 │   │   ├── layout.tsx         ← Root layout: SiteNav + SplashScreen + fonts
-│   │   ├── globals.css        ← Tailwind base + dark theme design tokens
-│   │   ├── loading.tsx        ← Page-transition skeleton (amber logo pulse)
+│   │   ├── globals.css        ← Tailwind + cream/black/rust design tokens
+│   │   ├── loading.tsx
 │   │   ├── page.tsx           ← Dashboard (server component → DashboardClient)
-│   │   ├── submit/page.tsx    ← Citizen/relay intake form
 │   │   ├── mp/page.tsx        ← MP triage tool (server → MpTriageClient)
 │   │   ├── showcase/page.tsx  ← Public showcase (server → ShowcaseClient)
 │   │   └── insights/page.tsx  ← Judge/technical view (server → InsightsClient)
@@ -55,22 +73,20 @@ peoples-priorities/
 │   │   ├── TriageCard.tsx        ← One draggable triage card
 │   │   ├── PublishModal.tsx      ← Publish-to-showcase dialog
 │   │   ├── HotspotMap.tsx        ← SVG constituency map (no external lib)
-│   │   ├── VoiceButton.tsx       ← Web Speech API voice capture
-│   │   ├── SiteNav.tsx           ← Dark sticky topbar, amber active tab
+│   │   ├── SiteNav.tsx           ← MP nav (Dashboard, Triage, Showcase, Insights)
 │   │   ├── SplashScreen.tsx      ← First-visit welcome animation
-│   │   ├── Logo.tsx              ← Amber icon mark + wordmark
+│   │   ├── Logo.tsx
 │   │   ├── ui.tsx                ← CategoryBadge, StatusDot, UrgencyTag
+│   │   ├── ui/Tag.tsx
 │   │   └── motion.tsx            ← Reveal, Stagger, Counter primitives
 │   ├── lib/
 │   │   ├── types.ts           ← Frontend copy of domain model (keep in sync with backend)
 │   │   └── api.ts             ← API_BASE util — ALL fetch() calls go through here
 │   ├── .env.local             ← NEXT_PUBLIC_API_URL=http://localhost:3001
-│   ├── tailwind.config.ts     ← Dark color palette: night, amber, jade, coral
-│   ├── tsconfig.json
-│   ├── next.config.mjs
+│   ├── tailwind.config.ts
 │   └── package.json
 │
-├── package.json               ← Workspace root (`npm run dev` starts both servers)
+├── package.json               ← Workspace root (`npm run dev` starts all three)
 ├── package-lock.json
 ├── TASKS.md                   ← This file
 └── README.md                  ← Quick-start for humans
@@ -83,7 +99,7 @@ peoples-priorities/
 **Frontend code MUST NOT import from `backend/src/` directly.**
 Frontend talks to the backend only via `fetch()` → `API_BASE/api/*`.
 
-The ONLY permitted exception: `submit/page.tsx` contains an inlined `detectLanguage()` function
+The ONLY permitted exception: `frontend-citizen/app/submit/page.tsx` contains an inlined `detectLanguage()` function
 (copied from `backend/src/ai/structure.ts`) that runs client-side for live UX feedback (the
 "Detected: Hindi" pill as the user types). This is a pure, side-effect-free function. No other
 backend logic may be shared this way.
@@ -103,7 +119,7 @@ RIGHT: const res = await fetch(`${API_BASE}/api/clusters`)    ← always
 ```bash
 # From repo root (recommended)
 npm install
-npm run dev          # backend :3001 + frontend :3000
+npm run dev          # backend :3001 + citizen :3000 + MP :3002
 
 # Or separately:
 # Terminal 1 — Backend (Express, port 3001)
@@ -111,14 +127,25 @@ cd backend
 npm install
 npm run dev
 
-# Terminal 2 — Frontend (Next.js, port 3000)
+# Terminal 2 — Citizen app (Next.js, port 3000)
+cd frontend-citizen
+npm install
+npm run dev
+
+# Terminal 3 — MP app (Next.js, port 3002)
 cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The frontend reads `NEXT_PUBLIC_API_URL=http://localhost:3001`
-from `frontend/.env.local`.
+| App | URL | Purpose |
+|-----|-----|---------|
+| Citizen | http://localhost:3000 | Home (placeholder) + `/submit` |
+| MP office | http://localhost:3002 | Dashboard, triage, showcase, insights |
+| API | http://localhost:3001 | Express backend |
+
+Both frontends read `NEXT_PUBLIC_API_URL=http://localhost:3001` from their `.env.local`.
+Citizen app also uses `NEXT_PUBLIC_MP_APP_URL=http://localhost:3002` for cross-links (e.g. showcase).
 
 ---
 
@@ -250,16 +277,14 @@ Designed to cover every feature visible at first launch with no user interaction
 
 ---
 
-## 10. The Five Pages — What Each Does
+## 10. The Pages — What Each Does
 
-### `/` — Dashboard (frontend/app/page.tsx → DashboardClient.tsx)
-- **Server component** fetches `/api/clusters` at request time. Zero client-side fetch delay.
-- Shows: 4 stat tiles (voices, themes, wards, relay %), priority themes ranked list,
-  4 action bento tiles (yellow/green/coral/dark), demand gap alert (internal only),
-  recent completed outcomes strip.
-- Stagger animation: header → stats → bento → legend.
+### Citizen app (`frontend-citizen/`, port 3000)
 
-### `/submit` — Citizen & Relay Intake (frontend/app/submit/page.tsx)
+#### `/` — Home (frontend-citizen/app/page.tsx)
+- Placeholder until Phase 4. Links to `/submit`.
+
+#### `/submit` — Citizen & Relay Intake (frontend-citizen/app/submit/page.tsx)
 - **Client component** ("use client"). Mode toggle: "For myself" / "For someone else".
 - Relay mode shows extra fields: relay worker role + citizen locality.
 - Live language detection pill as user types (detectLanguage inlined — spec §2.5 exception).
@@ -267,6 +292,16 @@ Designed to cover every feature visible at first launch with no user interaction
 - On submit: POST to `/api/submit`. On success → Acknowledgment screen.
 - Acknowledgment shows ONLY: checkmark, "Your voice has been heard", detected language,
   whether it joined existing demand. NO tracking ID, NO status, NO cluster ID — by design.
+- "See outcomes" links to MP app showcase (`NEXT_PUBLIC_MP_APP_URL/showcase`).
+
+### MP app (`frontend/`, port 3002)
+
+#### `/` — Dashboard (frontend/app/page.tsx → DashboardClient.tsx)
+- **Server component** fetches `/api/clusters` at request time. Zero client-side fetch delay.
+- Shows: 4 stat tiles (voices, themes, wards, relay %), priority themes ranked list,
+  4 action bento tiles (yellow/green/coral/dark), demand gap alert (internal only),
+  recent completed outcomes strip.
+- Stagger animation: header → stats → bento → legend.
 
 ### `/mp` — MP Triage Tool (frontend/app/mp/page.tsx → MpTriageClient.tsx)
 - **Server component** pre-fetches non-published clusters from backend. No client-side loading state.
@@ -302,9 +337,9 @@ Designed to cover every feature visible at first launch with no user interaction
 
 | Feature | PRD §  | Implementation location |
 |---------|--------|------------------------|
-| Self-submit text intake | 4.1.1 | frontend/app/submit/page.tsx |
-| Relay-submit with worker role + locality | 4.1.2 | frontend/app/submit/page.tsx |
-| Voice input (Web Speech API) | 4.1.1 | frontend/components/VoiceButton.tsx |
+| Self-submit text intake | 4.1.1 | frontend-citizen/app/submit/page.tsx |
+| Relay-submit with worker role + locality | 4.1.2 | frontend-citizen/app/submit/page.tsx |
+| Voice input (Web Speech API) | 4.1.1 | frontend-citizen/components/VoiceButton.tsx |
 | Acknowledgment only — no tracking | 4.1.3, 4.10 | Acknowledgment component in submit page |
 | Language auto-detection (6 scripts) | 4.2 | backend/src/ai/structure.ts |
 | Category classification (keyword match) | 4.2 | backend/src/ai/structure.ts |
@@ -327,7 +362,7 @@ Designed to cover every feature visible at first launch with no user interaction
 | Public showcase (completed only) | 4.6 | frontend/app/showcase/page.tsx |
 | Outcome paired with demand count | 4.6 | ShowcaseClient ShowcaseCard |
 | Print as gram-sabha noticeboard | 4.7 | showcase page + @media print CSS |
-| Relay-submit as rural access path | 4.7 | submit/page.tsx relay mode |
+| Relay-submit as rural access path | 4.7 | frontend-citizen/app/submit/page.tsx relay mode |
 | Geospatial hotspot map (SVG) | 4.8 | frontend/components/HotspotMap.tsx |
 | Map markers sized by affected count | 4.8 | HotspotMap marker-sizing formula |
 | Category color on map markers | 4.8 | CATEGORY_META from ui.tsx |
@@ -338,10 +373,10 @@ Designed to cover every feature visible at first launch with no user interaction
 | Aggregate stats (totalVoices, themes etc.) | 6.10 | backend/src/store.ts getStats() |
 | Ranking: published sink to bottom | §4.5 | store.ts getClusters() comparator |
 | Splash screen on first visit | UX | frontend/components/SplashScreen.tsx |
-| Dark mode design (dark navy + amber) | UX | frontend/app/globals.css |
+| Cream/black/rust design tokens | UX | */app/globals.css + tailwind.config.ts |
 | Stagger entrance animations | UX | DashboardClient, motion variants |
-| Monorepo backend/frontend split | §2 | backend/ + frontend/ folders |
-| Frontend never imports backend | §2.5 | enforced via frontend/lib/api.ts |
+| Monorepo three-workspace split | §2 | backend/ + frontend-citizen/ + frontend/ |
+| Frontend never imports backend | §2.5 | enforced via */lib/api.ts |
 
 ---
 
@@ -351,7 +386,7 @@ Designed to cover every feature visible at first launch with no user interaction
 |---------|-------|---------------|----------------|
 | AI structuring (category/urgency/sentiment) | 4.2 | Keyword regex match — works offline | Replace `backend/src/ai/structure.ts` with real Gemini/GPT structured-output call |
 | Embeddings for clustering | 4.3 | Bag-of-words cosine similarity — works | Replace `embed()` in `backend/src/ai/cluster.ts` with real embeddings API call |
-| Voice input reliability | 4.1.1 | Web Speech API — Chrome only, English-biased | Replace VoiceButton with Google Cloud Speech-to-Text for Indic language accuracy |
+| Voice input reliability | 4.1.1 | Web Speech API — Chrome only, English-biased | Replace VoiceButton in `frontend-citizen/` with Google Cloud Speech-to-Text |
 | HotspotMap geographic accuracy | 4.8 | Stylized 0–100 canvas, not real coordinates | Swap SVG for Leaflet/Mapbox, convert geo.x/y to real lat/lng |
 | gapNote UI control | 4.9 | Field exists in types, no UI to set it | Add inline text input inside TriageCard's showInternal panel |
 | Sentiment in scoring | §10.4 | Detected and stored, not weighted | Weight `distressed` submissions slightly higher in urgencyComponent |
