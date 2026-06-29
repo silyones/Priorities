@@ -23,9 +23,7 @@ export function SiteNav() {
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-ink/95 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-5 sm:px-8">
-        <Link href="/" className="mr-4 shrink-0">
-          <Logo />
-        </Link>
+        <Logo className="mr-4 shrink-0" />
 
         <nav className="hidden flex-1 items-center gap-1 md:flex">
           {LINKS.map((l) => {
