@@ -193,7 +193,11 @@ export default function SubmitPage() {
                       <label className="text-sm font-semibold text-ink">
                         {mode === "self" ? "Describe your issue" : "What did they describe?"}
                       </label>
-                      <VoiceButton onTranscript={setText} />
+                      <VoiceButton
+                        onTranscript={(spoken) =>
+                          setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken))
+                        }
+                      />
                     </div>
                     <div className="relative">
                       <textarea
