@@ -3,8 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, Home, Mic } from "lucide-react";
+import { Menu, X, Home, Mic, ChevronDown } from "lucide-react";
 import { Logo } from "./Logo";
+
+type Language = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali";
+
+const LANG_OPTIONS: { code: Language; label: string }[] = [
+  { code: "english", label: "English" },
+  { code: "kannada", label: "Kannada" },
+  { code: "hindi", label: "Hindi" },
+  { code: "tamil", label: "Tamil" },
+  { code: "telugu", label: "Telugu" },
+  { code: "bengali", label: "Bengali" },
+];
 
 const LINKS = [
   { href: "/",       label: "Home",   icon: Home },
@@ -14,11 +25,22 @@ const LINKS = [
 export function SiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [language, setLanguage] = useState<Language>("english");
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
   }, [open]);
+  useEffect(() => {
+    const stored = localStorage.getItem("citizen-language") as Language | null;
+    if (stored) setLanguage(stored);
+  }, []);
+
+  function handleLanguageChange(next: Language) {
+    setLanguage(next);
+    localStorage.setItem("citizen-language", next);
+    window.dispatchEvent(new Event("citizen-language-change"));
+  }
 
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-cream/95 backdrop-blur-md">
@@ -46,10 +68,33 @@ export function SiteNav() {
           })}
         </nav>
 
+        <div className="ml-auto hidden items-center md:flex">
+          <label className="inline-flex items-center gap-2 text-sm text-ink">
+            <span className="font-medium">Language</span>
+            <div className="relative">
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value as Language)}
+                className="appearance-none rounded-lg border border-accent bg-surface-white py-1.5 pl-3 pr-9 text-sm text-ink outline-none focus:border-accent"
+              >
+                {LANG_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                aria-hidden
+                className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
+              />
+            </div>
+          </label>
+        </div>
+
         <button
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle text-ink md:hidden"
+          className="ml-2 flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle text-ink md:hidden"
         >
           {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
