@@ -42,7 +42,7 @@ export function DashboardClient({
       <motion.div variants={up} className="border-b border-border-subtle px-5 py-5 sm:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div>
-            <p className="label">People's Priorities · Rajgarh Constituency</p>
+            <p className="label">People's Priorities · Bengaluru North Constituency</p>
             <h1 className="mt-1 text-2xl font-bold text-ink">Constituency Dashboard</h1>
           </div>
         </div>
