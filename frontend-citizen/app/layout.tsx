@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/SiteNav";
-import { SplashScreen } from "@/components/SplashScreen";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,9 +17,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "People's Priorities — MP Office",
+  title: "People's Priorities — Citizen",
   description:
-    "A multilingual AI platform that turns scattered citizen voices into a clear, ranked, actionable picture of real constituency demand.",
+    "Share your constituency development needs — voice or text, any language.",
 };
 
 export const viewport: Viewport = {
@@ -33,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body className="min-h-screen antialiased">
-        <SplashScreen />
         <SiteNav />
         <main>{children}</main>
       </body>

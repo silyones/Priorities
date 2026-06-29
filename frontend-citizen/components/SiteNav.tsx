@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, LayoutDashboard, Layers, Megaphone, FlaskConical } from "lucide-react";
+import { Menu, X, Home, Mic } from "lucide-react";
 import { Logo } from "./Logo";
 
 const LINKS = [
-  { href: "/",         label: "Dashboard", icon: LayoutDashboard },
-  { href: "/mp",       label: "MP Triage", icon: Layers         },
-  { href: "/showcase", label: "Showcase",  icon: Megaphone      },
-  { href: "/insights", label: "Insights",  icon: FlaskConical   },
+  { href: "/",       label: "Home",   icon: Home },
+  { href: "/submit", label: "Submit", icon: Mic  },
 ];
 
 export function SiteNav() {
@@ -49,15 +47,6 @@ export function SiteNav() {
             );
           })}
         </nav>
-
-        <div className="ml-auto hidden items-center gap-3 md:flex">
-          <div className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-1.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-surface-white">
-              M
-            </span>
-            <span className="text-xs font-medium text-white/80">Rajgarh · MP Office</span>
-          </div>
-        </div>
 
         <button
           aria-label={open ? "Close menu" : "Open menu"}

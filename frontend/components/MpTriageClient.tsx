@@ -54,36 +54,32 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
 
   return (
     <motion.div
-      className="min-h-screen"
-      style={{ background: "#0D0F14" }}
+      className="min-h-screen bg-cream"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Page header */}
-      <div className="border-b px-5 py-5 sm:px-8" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
         <div className="mx-auto max-w-7xl">
           <p className="label">One ranked theme per card</p>
-          <h1 className="mt-1 text-2xl font-bold text-white">MP Triage Tool</h1>
+          <h1 className="mt-1 text-2xl font-bold text-ink">MP Triage Tool</h1>
         </div>
       </div>
 
       <div className="container-pp py-8">
         <div className="mx-auto max-w-md">
-          {/* Progress bar */}
           {total > 0 && (
             <div className="mb-6">
-              <div className="flex items-center justify-between text-xs font-medium text-white/40">
+              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
                 <span className="flex items-center gap-1.5">
-                  <Coffee className="h-3.5 w-3.5 text-amber-400" />
+                  <Coffee className="h-3.5 w-3.5 text-accent" />
                   {actedCount} actioned this session
                 </span>
                 <span>{deck.length} remaining</span>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border-subtle">
                 <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, #F5C518, #4ADE80)" }}
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-tag-teal-text"
                   animate={{ width: `${(actedCount / total) * 100}%` }}
                   transition={{ type: "spring", stiffness: 200, damping: 26 }}
                 />
@@ -92,7 +88,6 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
           )}
         </div>
 
-        {/* Card deck */}
         <div className="relative mx-auto mt-6 h-[560px] max-w-md">
           {!done && (
             <>
@@ -115,12 +110,11 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
               animate={{ opacity: 1, scale: 1 }}
               className="card flex h-full flex-col items-center justify-center p-8 text-center"
             >
-              <div className="flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: "#4ADE80" }}>
-                <CheckCircle2 className="h-8 w-8 text-night-950" style={{ color: "#0D0F14" }} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-tag-teal-bg">
+                <CheckCircle2 className="h-8 w-8 text-tag-teal-text" />
               </div>
-              <h2 className="mt-5 text-2xl font-bold text-white">All caught up</h2>
-              <p className="mt-2 text-sm text-white/50">
+              <h2 className="mt-5 text-2xl font-bold text-ink">All caught up</h2>
+              <p className="mt-2 text-sm text-ink-muted">
                 {actedCount} themes actioned — each carries a record of activity.
                 Published outcomes appear on the showcase.
               </p>
@@ -142,9 +136,8 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
           )}
         </div>
 
-        {/* Swipe legend */}
         {!done && (
-          <div className="mx-auto mt-6 flex max-w-md items-center justify-center gap-5 text-[11px] font-medium text-white/30">
+          <div className="mx-auto mt-6 flex max-w-md items-center justify-center gap-5 text-[11px] font-medium text-ink-muted">
             <span className="inline-flex items-center gap-1">
               <HelpCircle className="h-3.5 w-3.5" /> ← need info
             </span>

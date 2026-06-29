@@ -30,51 +30,57 @@ cd Priorities
 
 ### 2. Install dependencies
 
-```bash
-# Backend
-cd backend
-npm install
+From the repo root (npm workspaces installs all three packages):
 
-# Frontend
-cd ../frontend
+```bash
 npm install
 ```
 
 ### 3. Configure environment
 
-The frontend needs to know where the backend is. A default `.env.local` is already
-included in `frontend/`. It points to `http://localhost:3001` (the default backend port).
+Both frontends need the backend URL. Copy the examples and edit if needed:
 
-If you change the backend port, edit `frontend/.env.local`:
+```bash
+cp frontend-citizen/.env.example frontend-citizen/.env.local
+cp frontend/.env.example frontend/.env.local
+```
 
 ```env
+# frontend-citizen/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_MP_APP_URL=http://localhost:3002
+
+# frontend/.env.local (MP app)
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-### 4. Start both servers
+### 4. Start all three servers
 
-Open **two terminal windows**:
+**Option A — one command from the repo root (recommended):**
 
-**Terminal 1 — Backend (Express API)**
 ```bash
-cd backend
-npm run dev
-# Starts on http://localhost:3001
+npm run dev    # backend :3001 + citizen :3000 + MP :3002
 ```
 
-**Terminal 2 — Frontend (Next.js)**
-```bash
-cd frontend
-npm run dev
-# Starts on http://localhost:3000
-```
+**Option B — three terminal windows:**
 
-### 5. Open the app
+| Terminal | Command | URL |
+|----------|---------|-----|
+| Backend | `cd backend && npm run dev` | http://localhost:3001 |
+| Citizen app | `cd frontend-citizen && npm run dev` | http://localhost:3000 |
+| MP app | `cd frontend && npm run dev` | http://localhost:3002 |
 
-Go to **http://localhost:3000** in your browser.
+Individual scripts from root: `npm run dev:backend`, `npm run dev:citizen`, `npm run dev:mp`.
 
-> The app loads with 13 realistic mock clusters covering all categories, statuses, and
-> wards. No database or external API keys are needed to run it.
+### 5. Open the apps
+
+| App | URL | Who uses it |
+|-----|-----|-------------|
+| **Citizen** | http://localhost:3000 | Citizens & relay workers — submit voices |
+| **MP office** | http://localhost:3002 | Dashboard, triage, showcase, insights |
+| **API** | http://localhost:3001 | Express backend (not browsed directly) |
+
+> The MP app loads with 13 realistic mock clusters. No database or external API keys are needed.
 
 ---
 
@@ -96,35 +102,45 @@ Priorities/
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── frontend/                  ← Next.js 14 app (port 3000)
+├── frontend-citizen/          ← Citizen Next.js app (port 3000)
+│   ├── app/
+│   │   ├── page.tsx           Placeholder home (Phase 4)
+│   │   └── submit/page.tsx    Citizen & relay intake form
+│   ├── components/            Logo, SiteNav, VoiceButton, ui/Tag, motion
+│   ├── lib/api.ts             API_BASE + MP_APP_URL for cross-links
+│   └── package.json
+│
+├── frontend/                  ← MP office Next.js app (port 3002)
 │   ├── app/
 │   │   ├── page.tsx           Dashboard — ranked themes + stats
-│   │   ├── submit/page.tsx    Citizen & relay intake form
 │   │   ├── mp/page.tsx        MP triage card-stack
 │   │   ├── showcase/page.tsx  Public showcase of completed work
 │   │   └── insights/page.tsx  Judge / technical view (map + scoring)
-│   ├── components/            UI components
+│   ├── components/            MP-specific UI (DashboardClient, TriageCard, …)
 │   ├── lib/
 │   │   ├── types.ts           Frontend copy of domain types
 │   │   └── api.ts             All API calls go through here
 │   ├── .env.local             NEXT_PUBLIC_API_URL=http://localhost:3001
 │   └── package.json
 │
+├── package.json               Workspace root (`npm run dev` starts all three)
+├── package-lock.json
 ├── TASKS.md                   Full feature status, architecture guide, AI agent rules
 └── README.md                  This file
 ```
 
 ---
 
-## The Four Surfaces
+## The Surfaces
 
-| Route | Who uses it | What it shows |
-|-------|-------------|---------------|
-| `/` | MP office / anyone | Live dashboard — ranked demand themes, stats |
-| `/submit` | Citizens & relay workers | Voice or text submission form (multilingual) |
-| `/mp` | MP office staff | Triage card-stack — swipe to action themes |
-| `/showcase` | General public | Completed, MP-approved outcomes only |
-| `/insights` | Hackathon judges / technical | Hotspot map, scoring breakdown, full data |
+| Route | App | Port | Who uses it |
+|-------|-----|------|-------------|
+| `/` | Citizen | 3000 | Placeholder home (Phase 4) |
+| `/submit` | Citizen | 3000 | Citizens & relay workers — voice or text submission |
+| `/` | MP | 3002 | Live dashboard — ranked demand themes, stats |
+| `/mp` | MP | 3002 | MP office staff — triage card-stack |
+| `/showcase` | MP | 3002 | General public — completed, MP-approved outcomes |
+| `/insights` | MP | 3002 | Hackathon judges / technical — hotspot map, scoring |
 
 ---
 
@@ -146,10 +162,10 @@ Priorities/
 - TypeScript
 - In-memory store (swappable to Firestore / PostgreSQL — see TASKS.md §15)
 
-**Frontend**
-- Next.js 14 (App Router)
+**Frontends**
+- Next.js 14 (App Router) × 2 — citizen + MP
 - TypeScript
-- Tailwind CSS
+- Tailwind CSS (cream / black / rust design tokens)
 - Framer Motion
 - Lucide icons
 

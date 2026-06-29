@@ -55,78 +55,69 @@ export function TriageCard({
       whileTap={isTop ? { cursor: "grabbing" } : undefined}
       className={`absolute inset-x-0 top-0 ${isTop ? "cursor-grab" : "pointer-events-none"}`}
     >
-      <div
-        className="relative overflow-hidden rounded-2xl p-6 shadow-lift"
-        style={{ background: "#1E2330", border: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        {/* swipe stamps */}
+      <div className="card relative overflow-hidden p-6 shadow-lift">
         <motion.div
           style={{ opacity: forwardOp }}
-          className="pointer-events-none absolute right-5 top-5 rotate-12 rounded-xl border-2 border-amber-400 px-3 py-1 text-sm font-bold uppercase tracking-wide text-amber-400"
+          className="pointer-events-none absolute right-5 top-5 rotate-12 rounded-xl border-2 border-accent px-3 py-1 text-sm font-bold uppercase tracking-wide text-accent"
         >
           Forward
         </motion.div>
         <motion.div
           style={{ opacity: infoOp }}
-          className="pointer-events-none absolute left-5 top-5 -rotate-12 rounded-xl border-2 border-orange-400 px-3 py-1 text-sm font-bold uppercase tracking-wide text-orange-400"
+          className="pointer-events-none absolute left-5 top-5 -rotate-12 rounded-xl border-2 border-tag-orange-text px-3 py-1 text-sm font-bold uppercase tracking-wide text-tag-orange-text"
         >
           Need info
         </motion.div>
         <motion.div
           style={{ opacity: handlingOp }}
-          className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-xl border-2 border-emerald-400 px-3 py-1 text-sm font-bold uppercase tracking-wide text-emerald-400"
+          className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-xl border-2 border-tag-teal-text px-3 py-1 text-sm font-bold uppercase tracking-wide text-tag-teal-text"
         >
           Handling
         </motion.div>
 
         <div className="flex items-center justify-between">
           <CategoryBadge category={cluster.category} />
-          <span className="flex items-center gap-2 text-xs font-medium text-white/50">
+          <span className="flex items-center gap-2 text-xs font-medium text-ink-muted">
             <StatusDot status={cluster.status} pulse={cluster.status === "new"} />
             {STATUS_META[cluster.status].label}
           </span>
         </div>
 
-        <h3 className="mt-4 text-2xl font-bold leading-tight text-white">
+        <h3 className="mt-4 text-2xl font-bold leading-tight text-ink">
           {cluster.title}
         </h3>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-white/50">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-ink-muted">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-4 w-4" /> {cluster.locality}
           </span>
           <UrgencyTag urgency={cluster.urgency} />
         </div>
 
-        {/* big number */}
-        <div
-          className="mt-5 flex items-end justify-between rounded-2xl p-4"
-          style={{ background: "rgba(255,255,255,0.05)" }}
-        >
+        <div className="mt-5 flex items-end justify-between rounded-2xl bg-cream p-4">
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="font-mono text-4xl font-bold text-white">
+              <span className="font-mono text-4xl font-bold text-ink">
                 <Counter to={cluster.affected} />
               </span>
-              <Users className="h-5 w-5 text-white/30" />
+              <Users className="h-5 w-5 text-ink-muted" />
             </div>
-            <div className="mt-0.5 text-xs font-medium text-white/40">citizens affected</div>
+            <div className="mt-0.5 text-xs font-medium text-ink-muted">citizens affected</div>
           </div>
           <div className="text-right">
-            <div className="font-mono text-2xl font-bold text-amber-400">{cluster.score}</div>
-            <div className="text-xs font-medium text-white/40">priority</div>
+            <div className="font-mono text-2xl font-bold text-accent">{cluster.score}</div>
+            <div className="text-xs font-medium text-ink-muted">priority</div>
           </div>
         </div>
 
-        {/* demand-vs-sanctioned (PRD 4.9) */}
         {cluster.sanctionedProject && (
           <button
             type="button"
             onClick={() => setShowInternal((v) => !v)}
-            className="mt-3 w-full rounded-xl border border-dashed border-white/15 px-3 py-2 text-left text-xs text-white/40 transition-colors hover:border-amber-500/40 hover:text-white/60"
+            className="mt-3 w-full rounded-xl border border-dashed border-border-subtle px-3 py-2 text-left text-xs text-ink-muted transition-colors hover:border-accent/40 hover:text-ink"
           >
             {showInternal ? (
-              <span className="text-white/70">
+              <span>
                 Top demand: <b>{cluster.title.toLowerCase()}</b> · Sanctioned nearby:{" "}
                 <b>{cluster.sanctionedProject}</b>. Internal only.
               </span>
@@ -138,10 +129,9 @@ export function TriageCard({
           </button>
         )}
 
-        {/* office note */}
         {cluster.officeNote && !noteOpen && (
-          <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2 text-xs italic text-amber-300">
-            "{cluster.officeNote}"
+          <p className="mt-3 rounded-xl border border-accent/20 bg-warning-bg px-3 py-2 text-xs italic text-tag-orange-text">
+            &ldquo;{cluster.officeNote}&rdquo;
           </p>
         )}
 
@@ -152,7 +142,7 @@ export function TriageCard({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Raised in block meeting last week"
-              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-amber-400/50"
+              className="w-full rounded-xl border border-border-subtle bg-cream px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-accent/50"
             />
             <div className="mt-2 flex gap-2">
               <button onClick={() => { onNote(note); setNoteOpen(false); }} className="btn-accent !py-2 text-xs">
@@ -164,22 +154,21 @@ export function TriageCard({
         ) : (
           <button
             onClick={() => setNoteOpen(true)}
-            className="mt-3 text-xs font-medium text-white/30 hover:text-white/60"
+            className="mt-3 text-xs font-medium text-ink-muted hover:text-ink"
           >
             {cluster.officeNote ? "Edit office note" : "+ Attach a one-line office note"}
           </button>
         )}
 
-        {/* three positive actions */}
         <div className="mt-5 grid grid-cols-3 gap-2">
-          <ActionBtn onClick={() => onAction("info")}      icon={<HelpCircle className="h-4 w-4" />} label="Need info" tone="amber"   />
-          <ActionBtn onClick={() => onAction("handling")}  icon={<Hand      className="h-4 w-4" />} label="Handling"  tone="emerald" />
-          <ActionBtn onClick={() => onAction("forwarded")} icon={<Forward   className="h-4 w-4" />} label="Forward"   tone="sky"     />
+          <ActionBtn onClick={() => onAction("info")}      icon={<HelpCircle className="h-4 w-4" />} label="Need info" tone="orange" />
+          <ActionBtn onClick={() => onAction("handling")}  icon={<Hand      className="h-4 w-4" />} label="Handling"  tone="teal"   />
+          <ActionBtn onClick={() => onAction("forwarded")} icon={<Forward   className="h-4 w-4" />} label="Forward"   tone="accent" />
         </div>
 
         <button
           onClick={onPublish}
-          className="mt-3 w-full rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-night-950 transition-all hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-glow"
+          className="mt-3 w-full rounded-xl bg-accent py-2.5 text-xs font-bold text-surface-white transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-glow"
         >
           Mark complete &amp; publish to showcase →
         </button>
@@ -192,17 +181,17 @@ function ActionBtn({ onClick, icon, label, tone }: {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
-  tone: "amber" | "emerald" | "sky";
+  tone: "orange" | "teal" | "accent";
 }) {
   const tones = {
-    amber:   "hover:bg-amber-500/15 hover:text-amber-300 hover:border-amber-500/30",
-    emerald: "hover:bg-emerald-500/15 hover:text-emerald-300 hover:border-emerald-500/30",
-    sky:     "hover:bg-teal-500/15 hover:text-teal-300 hover:border-teal-500/30",
+    orange: "hover:bg-tag-orange-bg hover:text-tag-orange-text hover:border-tag-orange-text/30",
+    teal:   "hover:bg-tag-teal-bg hover:text-tag-teal-text hover:border-tag-teal-text/30",
+    accent: "hover:bg-accent/10 hover:text-accent hover:border-accent/30",
   };
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-white/50 transition-all active:scale-95 ${tones[tone]}`}
+      className={`flex flex-col items-center gap-1 rounded-xl border border-border-subtle bg-cream py-2.5 text-xs font-semibold text-ink-muted transition-all active:scale-95 ${tones[tone]}`}
     >
       {icon}
       {label}
