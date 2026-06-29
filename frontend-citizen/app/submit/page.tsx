@@ -77,9 +77,6 @@ export default function SubmitPage() {
             <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
               <div className="mx-auto max-w-7xl">
                 <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  Type or speak in any language · self-submit or relay on behalf of someone
-                </p>
               </div>
             </div>
             <div className="container-pp py-8">
@@ -196,7 +193,7 @@ export default function SubmitPage() {
 
                   <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-ink-muted">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    No tracking number, no status, no timeline — just an honest acknowledgment.
+                    No tracking number, no status, no timeline. Just an honest acknowledgment.
                   </p>
                 </form>
               </motion.div>

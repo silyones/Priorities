@@ -6,7 +6,7 @@ const STEPS = [
     icon: MessageSquare,
     title: "Speak or type your issue",
     description:
-      "Describe a local need in your own words — by voice or text, in any language you’re comfortable with.",
+      "Describe a local need in your own words. By voice or text, in any language you’re comfortable with.",
   },
   {
     icon: Layers,
@@ -18,7 +18,7 @@ const STEPS = [
     icon: BarChart3,
     title: "Your MP sees real demand",
     description:
-      "Themes are ranked by how many people are affected — so your representative can act on what matters most.",
+      "Themes are ranked by how many people are affected, so your representative can act on what matters most.",
   },
 ] as const;
 
@@ -52,7 +52,7 @@ export default function HomePage() {
               How it works
             </h2>
             <p className="mt-3 text-ink-muted">
-              Three simple steps — no account, no tracking number, no bureaucracy.
+              Three simple steps: no account, no tracking number, no paperwork.
             </p>
           </div>
 
