@@ -1,65 +1,114 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Mic, MicOff } from "lucide-react";
+import { Loader2, Mic, MicOff } from "lucide-react";
+import { transcribeSpeech } from "@/lib/transcribe";
+
+const MAX_RECORDING_MS = 30_000;
+
+function pickMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/wav"];
+  return types.find((t) => MediaRecorder.isTypeSupported(t));
+}
 
 export function VoiceButton({
   onTranscript,
-  lang = "en-IN",
 }: {
   onTranscript: (text: string) => void;
-  lang?: string;
 }) {
-  const [listening, setListening] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "recording" | "processing">("idle");
   const [supported, setSupported] = useState(true);
-  const recRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const SR =
-      typeof window !== "undefined" &&
-      ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-    if (!SR) {
-      setSupported(false);
-      return;
+    const ok =
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices?.getUserMedia &&
+      typeof MediaRecorder !== "undefined";
+    setSupported(ok);
+  }, []);
+
+  const cleanupStream = useCallback(() => {
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
     }
-    const rec = new SR();
-    rec.lang = lang;
-    rec.interimResults = true;
-    rec.continuous = true;
-    let finalText = "";
-    rec.onresult = (e: any) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t + " ";
-        else interim += t;
-      }
-      onTranscript((finalText + interim).trim());
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recRef.current = rec;
-    return () => {
-      try {
-        rec.stop();
-      } catch {}
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+    chunksRef.current = [];
+  }, []);
+
+  useEffect(() => () => cleanupStream(), [cleanupStream]);
+
+  const stopRecording = useCallback(async () => {
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+
+    setPhase("processing");
+
+    const blob = await new Promise<Blob>((resolve) => {
+      recorder.onstop = () => {
+        const mime = recorder.mimeType || "audio/webm";
+        resolve(new Blob(chunksRef.current, { type: mime }));
+      };
+      recorder.stop();
+    });
+
+    cleanupStream();
+
+    try {
+      const result = await transcribeSpeech(blob);
+      onTranscript(result.transcript);
+      setError(null);
+      setPhase("idle");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transcription failed");
+      setPhase("idle");
+    }
+  }, [cleanupStream, onTranscript]);
+
+  const startRecording = useCallback(async () => {
+    setError(null);
+    chunksRef.current = [];
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mimeType = pickMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.start(250);
+      setPhase("recording");
+
+      stopTimerRef.current = setTimeout(() => {
+        void stopRecording();
+      }, MAX_RECORDING_MS);
+    } catch {
+      cleanupStream();
+      setError("Microphone access denied. Type your issue instead.");
+      setPhase("idle");
+    }
+  }, [cleanupStream, stopRecording]);
 
   const toggle = () => {
-    const rec = recRef.current;
-    if (!rec) return;
-    if (listening) {
-      rec.stop();
-      setListening(false);
-    } else {
-      try {
-        rec.start();
-        setListening(true);
-      } catch {}
-    }
+    if (phase === "processing") return;
+    if (phase === "recording") void stopRecording();
+    else void startRecording();
   };
 
   if (!supported) {
@@ -70,25 +119,42 @@ export function VoiceButton({
     );
   }
 
+  const listening = phase === "recording";
+  const processing = phase === "processing";
+
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className={`relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-        listening ? "bg-tag-red-bg text-tag-red-text" : "btn-ghost"
-      }`}
-    >
-      {listening && (
-        <motion.span
-          className="absolute inset-0 rounded-full bg-tag-red-bg"
-          animate={{ scale: [1, 1.25], opacity: [0.5, 0] }}
-          transition={{ duration: 1.4, repeat: Infinity }}
-        />
-      )}
-      <span className="relative flex items-center gap-2">
-        <Mic className="h-4 w-4" />
-        {listening ? "Listening… tap to stop" : "Speak"}
-      </span>
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={processing}
+        className={`relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all disabled:opacity-70 ${
+          listening
+            ? "bg-accent-hover text-surface-white"
+            : "bg-accent text-surface-white hover:bg-accent-hover"
+        }`}
+      >
+        {listening && (
+          <motion.span
+            className="absolute inset-0 rounded-full bg-accent"
+            animate={{ scale: [1, 1.25], opacity: [0.5, 0] }}
+            transition={{ duration: 1.4, repeat: Infinity }}
+          />
+        )}
+        <span className="relative flex items-center gap-2">
+          {processing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+          {processing
+            ? "Transcribing…"
+            : listening
+              ? "Listening… tap to stop"
+              : "Speak"}
+        </span>
+      </button>
+      {error && <p className="max-w-[14rem] text-right text-xs text-tag-red-text">{error}</p>}
+    </div>
   );
 }
