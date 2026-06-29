@@ -129,12 +129,14 @@ export function VoiceButton({
         onClick={toggle}
         disabled={processing}
         className={`relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all disabled:opacity-70 ${
-          listening ? "bg-tag-red-bg text-tag-red-text" : "btn-ghost"
+          listening
+            ? "bg-accent-hover text-surface-white"
+            : "bg-accent text-surface-white hover:bg-accent-hover"
         }`}
       >
         {listening && (
           <motion.span
-            className="absolute inset-0 rounded-full bg-tag-red-bg"
+            className="absolute inset-0 rounded-full bg-accent"
             animate={{ scale: [1, 1.25], opacity: [0.5, 0] }}
             transition={{ duration: 1.4, repeat: Infinity }}
           />
