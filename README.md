@@ -53,7 +53,14 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ### 4. Start both servers
 
-Open **two terminal windows**:
+**Option A — one command from the repo root (npm workspaces):**
+
+```bash
+npm install    # installs backend + frontend workspace deps
+npm run dev    # backend :3001 + frontend :3000 via concurrently
+```
+
+**Option B — two terminal windows:**
 
 **Terminal 1 — Backend (Express API)**
 ```bash
@@ -110,6 +117,8 @@ Priorities/
 │   ├── .env.local             NEXT_PUBLIC_API_URL=http://localhost:3001
 │   └── package.json
 │
+├── package.json               Workspace root (`npm run dev` starts backend + frontend)
+├── package-lock.json
 ├── TASKS.md                   Full feature status, architecture guide, AI agent rules
 └── README.md                  This file
 ```

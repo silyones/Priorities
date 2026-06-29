@@ -70,7 +70,9 @@ peoples-priorities/
 │   ├── next.config.mjs
 │   └── package.json
 │
-├── CLAUDE.md                  ← This file
+├── package.json               ← Workspace root (`npm run dev` starts both servers)
+├── package-lock.json
+├── TASKS.md                   ← This file
 └── README.md                  ← Quick-start for humans
 ```
 
@@ -99,6 +101,11 @@ RIGHT: const res = await fetch(`${API_BASE}/api/clusters`)    ← always
 ## 4. How to Run
 
 ```bash
+# From repo root (recommended)
+npm install
+npm run dev          # backend :3001 + frontend :3000
+
+# Or separately:
 # Terminal 1 — Backend (Express, port 3001)
 cd backend
 npm install
@@ -245,14 +252,14 @@ Designed to cover every feature visible at first launch with no user interaction
 
 ## 10. The Five Pages — What Each Does
 
-### `/` — Dashboard (app/page.tsx → DashboardClient.tsx)
+### `/` — Dashboard (frontend/app/page.tsx → DashboardClient.tsx)
 - **Server component** fetches `/api/clusters` at request time. Zero client-side fetch delay.
 - Shows: 4 stat tiles (voices, themes, wards, relay %), priority themes ranked list,
   4 action bento tiles (yellow/green/coral/dark), demand gap alert (internal only),
   recent completed outcomes strip.
 - Stagger animation: header → stats → bento → legend.
 
-### `/submit` — Citizen & Relay Intake (app/submit/page.tsx)
+### `/submit` — Citizen & Relay Intake (frontend/app/submit/page.tsx)
 - **Client component** ("use client"). Mode toggle: "For myself" / "For someone else".
 - Relay mode shows extra fields: relay worker role + citizen locality.
 - Live language detection pill as user types (detectLanguage inlined — spec §2.5 exception).
@@ -261,7 +268,7 @@ Designed to cover every feature visible at first launch with no user interaction
 - Acknowledgment shows ONLY: checkmark, "Your voice has been heard", detected language,
   whether it joined existing demand. NO tracking ID, NO status, NO cluster ID — by design.
 
-### `/mp` — MP Triage Tool (app/mp/page.tsx → MpTriageClient.tsx)
+### `/mp` — MP Triage Tool (frontend/app/mp/page.tsx → MpTriageClient.tsx)
 - **Server component** pre-fetches non-published clusters from backend. No client-side loading state.
 - Card stack: top 3 cards mounted, rest queued. Drag gestures:
   - Right/fast flick → "Forwarded"
@@ -272,14 +279,14 @@ Designed to cover every feature visible at first launch with no user interaction
 - Progress bar: "X actioned / Y remaining" (session-only, never persisted).
 - PublishModal: requires 4+ char outcome text, shows live preview before confirm.
 
-### `/showcase` — Public Showcase (app/showcase/page.tsx → ShowcaseClient.tsx)
+### `/showcase` — Public Showcase (frontend/app/showcase/page.tsx → ShowcaseClient.tsx)
 - **Server component** fetches `/api/showcase` (published clusters only).
 - Shows ONLY clusters where `status === "published"`. Nothing pending or in-progress.
 - Each card: outcome line + "based on N residents in [locality]".
 - Print button: `window.print()` for gram-sabha noticeboard. Button hides in print CSS.
 - Impact strip: total outcomes published + total residents served.
 
-### `/insights` — Judge / Technical View (app/insights/page.tsx → InsightsClient.tsx)
+### `/insights` — Judge / Technical View (frontend/app/insights/page.tsx → InsightsClient.tsx)
 - **Server component** fetches `/api/clusters` (same endpoint as /mp, different rendering).
 - HotspotMap: pure SVG, no external map library. Markers sized by `affected` count.
   Clicking a marker OR clicking a table row updates the same `selectedId` state.
@@ -334,7 +341,7 @@ Designed to cover every feature visible at first launch with no user interaction
 | Dark mode design (dark navy + amber) | UX | frontend/app/globals.css |
 | Stagger entrance animations | UX | DashboardClient, motion variants |
 | Monorepo backend/frontend split | §2 | backend/ + frontend/ folders |
-| Frontend never imports backend | §2.5 | enforced via lib/api.ts |
+| Frontend never imports backend | §2.5 | enforced via frontend/lib/api.ts |
 
 ---
 
