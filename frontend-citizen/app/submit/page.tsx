@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
-import { API_BASE } from "@/lib/api";
+import { fileToBase64 } from "@/lib/fileToBase64";
+import { db } from "@/src/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 function detectLanguage(text: string): string {
   if (/[ऀ-ॿ]/.test(text)) return "Hindi";
@@ -41,7 +43,8 @@ export default function SubmitPage() {
   const [manualArea, setManualArea] = useState("");
   const [showManualArea, setShowManualArea] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done">("idle");
-  const [ack, setAck] = useState<{ language: string; joined: boolean } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [ack, setAck] = useState<{ language: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const language = useMemo(() => (text.trim() ? detectLanguage(text) : null), [text]);
@@ -51,16 +54,27 @@ export default function SubmitPage() {
     e.preventDefault();
     if (!canSubmit) return;
     setStatus("sending");
+    setSubmitError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: text, source: mode, relayWorkerRole: role, locality }),
+      const imageBase64 = photoFile ? await fileToBase64(photoFile) : "";
+
+      await addDoc(collection(db, "submissions"), {
+        submittedFor: mode === "self" ? "myself" : "someone_else",
+        name: assistedPerson.trim(),
+        role: role.trim(),
+        locality: (mode === "relay" ? locality : manualArea).trim(),
+        topic: issueTitle.trim(),
+        description: text.trim(),
+        imageBase64,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        createdAt: serverTimestamp(),
       });
-      const data = await res.json();
-      setAck({ language: data.detectedLanguage ?? "English", joined: !!data.joinedExisting });
+
+      setAck({ language: detectLanguage(text) });
       setStatus("done");
     } catch {
+      setSubmitError("Could not save your submission. Please try again.");
       setStatus("idle");
     }
   }
@@ -77,6 +91,7 @@ export default function SubmitPage() {
     setManualArea("");
     setShowManualArea(false);
     setStatus("idle");
+    setSubmitError(null);
     setAck(null);
   }
 
@@ -312,6 +327,10 @@ export default function SubmitPage() {
                     )}
                   </button>
 
+                  {submitError && (
+                    <p className="mt-3 text-center text-sm text-tag-red-text">{submitError}</p>
+                  )}
+
                   <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-ink-muted">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     No tracking number, no status, no timeline. Just an honest acknowledgment.
@@ -391,7 +410,7 @@ function Acknowledgment({
   ack,
   onReset,
 }: {
-  ack: { language: string; joined: boolean } | null;
+  ack: { language: string } | null;
   onReset: () => void;
 }) {
   return (
@@ -439,8 +458,7 @@ function Acknowledgment({
       <Reveal delay={0.3}>
         <p className="mx-auto mt-4 max-w-md text-lg text-ink-muted">
           It&apos;s been recorded{ack?.language ? ` in ${ack.language}` : ""} and is now part of a
-          real pattern of demand{" "}
-          {ack?.joined ? "— it joined others raising the same issue." : "in your constituency."}
+          real pattern of demand in your constituency.
         </p>
       </Reveal>
 
