@@ -87,7 +87,7 @@ export function VoiceButton({
       )}
       <span className="relative flex items-center gap-2">
         <Mic className="h-4 w-4" />
-        {listening ? "Listening… tap to stop" : "Speak instead"}
+        {listening ? "Listening… tap to stop" : "Speak"}
       </span>
     </button>
   );

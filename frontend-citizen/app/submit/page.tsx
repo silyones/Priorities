@@ -1,18 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
+  Camera,
   Check,
   Loader2,
+  MapPin,
   ShieldCheck,
   User,
   Users,
+  X,
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
-import { API_BASE, MP_APP_URL } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 
 function detectLanguage(text: string): string {
   if (/[ऀ-ॿ]/.test(text)) return "Hindi";
@@ -23,22 +26,23 @@ function detectLanguage(text: string): string {
   return "English";
 }
 
-const EXAMPLES = [
-  "The drain near the primary school in Ward 7 floods every monsoon and children wade through dirty water.",
-  "नाली टूटी है, बारिश में घर के सामने गंदा पानी भर जाता है, स्कूल के बच्चे परेशान हैं।",
-  "Children walk 6 km to the nearest upper-primary school; many girls drop out before class 8.",
-  "Power cuts every evening when children study, and the voltage keeps damaging our appliances.",
-];
-
 type Mode = "self" | "relay";
 
 export default function SubmitPage() {
   const [mode, setMode] = useState<Mode>("self");
+  const [issueTitle, setIssueTitle] = useState("");
+  const [assistedPerson, setAssistedPerson] = useState("");
   const [text, setText] = useState("");
   const [role, setRole] = useState("");
   const [locality, setLocality] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [manualArea, setManualArea] = useState("");
+  const [showManualArea, setShowManualArea] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done">("idle");
   const [ack, setAck] = useState<{ language: string; joined: boolean } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const language = useMemo(() => (text.trim() ? detectLanguage(text) : null), [text]);
   const canSubmit = text.trim().length > 8 && status !== "sending";
@@ -62,30 +66,66 @@ export default function SubmitPage() {
   }
 
   function reset() {
+    setIssueTitle("");
+    setAssistedPerson("");
     setText("");
     setRole("");
     setLocality("");
+    setPhotoFile(null);
+    setPhotoPreviewUrl("");
+    setCoords(null);
+    setManualArea("");
+    setShowManualArea(false);
     setStatus("idle");
     setAck(null);
   }
 
+  function handlePhotoChange(file: File | null) {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    if (!file) {
+      setPhotoFile(null);
+      setPhotoPreviewUrl("");
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function requestCurrentLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setShowManualArea(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setShowManualArea(false);
+      },
+      () => {
+        setCoords(null);
+        setShowManualArea(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cream">
-      <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
-        <div className="mx-auto max-w-7xl">
-          <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
-          <p className="mt-0.5 text-sm text-ink-muted">Type or speak in any language · self-submit or relay on behalf of someone</p>
-        </div>
-      </div>
-      <div className="container-pp py-8">
-        <AnimatePresence mode="wait">
-          {status !== "done" ? (
-            <motion.div
-              key="form"
-              exit={{ opacity: 0, y: -20 }}
-              className="mx-auto max-w-2xl"
-            >
-              <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
+      <AnimatePresence mode="wait">
+        {status !== "done" ? (
+          <>
+            <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
+              <div className="mx-auto max-w-7xl">
+                <h1 className="text-xl font-semibold text-ink">Submit a Voice</h1>
+              </div>
+            </div>
+            <div className="container-pp py-8">
+              <motion.div
+                key="form"
+                exit={{ opacity: 0, y: -20 }}
+                className="mx-auto max-w-2xl"
+              >
+                <form onSubmit={handleSubmit} className="card p-6 sm:p-8">
                   <div className="relative grid grid-cols-2 gap-1 rounded-2xl bg-cream p-1">
                     <ModeTab
                       active={mode === "self"}
@@ -111,14 +151,20 @@ export default function SubmitPage() {
                       >
                         <div className="mt-5 grid gap-3 sm:grid-cols-2">
                           <Field
+                            label="Who are you submitting for?"
+                            placeholder="Their name (optional)"
+                            value={assistedPerson}
+                            onChange={setAssistedPerson}
+                          />
+                          <Field
                             label="Your role"
-                            placeholder="e.g. ASHA worker, panchayat secretary"
+                            placeholder="e.g. Neighbor, family member, ASHA worker, volunteer"
                             value={role}
                             onChange={setRole}
                           />
                           <Field
                             label="Citizen's village / locality"
-                            placeholder="e.g. Subhash Nagar, Ward 7"
+                            placeholder="Your village name"
                             value={locality}
                             onChange={setLocality}
                           />
@@ -132,9 +178,20 @@ export default function SubmitPage() {
                   </AnimatePresence>
 
                   <div className="mt-5">
+                    <Field
+                      label="What's this about?"
+                      placeholder="e.g. Broken streetlight, no water supply, road full of potholes"
+                      value={issueTitle}
+                      onChange={setIssueTitle}
+                      maxLength={80}
+                    />
+                    <p className="mt-1 text-xs text-ink-muted">Keep this short (max 80 characters).</p>
+                  </div>
+
+                  <div className="mt-5">
                     <div className="mb-2 flex items-center justify-between">
                       <label className="text-sm font-semibold text-ink">
-                        {mode === "relay" ? "What did they describe?" : "Describe the need"}
+                        {mode === "self" ? "Describe your issue" : "What did they describe?"}
                       </label>
                       <VoiceButton onTranscript={setText} />
                     </div>
@@ -143,7 +200,11 @@ export default function SubmitPage() {
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         rows={5}
-                        placeholder="Type here, or tap “Speak instead”. Any language is fine — we detect it automatically."
+                        placeholder={
+                          mode === "self"
+                            ? "Describe your issue"
+                            : "Type what they told you, in their own words"
+                        }
                         className="w-full resize-none rounded-2xl border border-border-subtle bg-cream p-4 text-[15px] leading-relaxed text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
                       />
                       <AnimatePresence>
@@ -160,23 +221,79 @@ export default function SubmitPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                  </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/40"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        Add photo
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
+                      />
 
-                  <div className="mt-4">
-                    <span className="text-xs font-medium text-ink-muted">Try an example:</span>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {EXAMPLES.map((ex, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setText(ex)}
-                          className="max-w-full truncate rounded-full border border-border-subtle bg-cream px-3 py-1.5 text-xs text-ink-muted transition-colors hover:border-accent/40 hover:text-ink"
-                          style={{ maxWidth: "100%" }}
-                        >
-                          {ex.length > 46 ? ex.slice(0, 46) + "…" : ex}
-                        </button>
-                      ))}
+                      <button
+                        type="button"
+                        onClick={requestCurrentLocation}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/40"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Use my current location
+                      </button>
                     </div>
+
+                    {photoPreviewUrl && (
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-white p-2">
+                        <img
+                          src={photoPreviewUrl}
+                          alt={photoFile?.name ?? "Selected upload"}
+                          className="h-14 w-14 rounded-lg object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handlePhotoChange(null)}
+                          className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2 py-1 text-xs text-ink-muted hover:text-ink"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    {coords && (
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink">
+                        <MapPin className="h-3.5 w-3.5 text-accent" />
+                        Location added
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCoords(null);
+                            setShowManualArea(true);
+                          }}
+                          className="text-ink-muted hover:text-ink"
+                          aria-label="Clear location"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {showManualArea && !coords && (
+                      <div className="mt-3">
+                        <Field
+                          label="Or type your area"
+                          placeholder="e.g. Ward 7 main road, Rajgarh"
+                          value={manualArea}
+                          onChange={setManualArea}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <button type="submit" disabled={!canSubmit} className="btn-primary mt-7 w-full disabled:opacity-40">
@@ -193,15 +310,16 @@ export default function SubmitPage() {
 
                   <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-ink-muted">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    No tracking number, no status, no timeline — just an honest acknowledgment.
+                    No tracking number, no status, no timeline. Just an honest acknowledgment.
                   </p>
                 </form>
-            </motion.div>
-          ) : (
-            <Acknowledgment key="ack" ack={ack} onReset={reset} showcaseUrl={`${MP_APP_URL}/showcase`} />
-          )}
-        </AnimatePresence>
-      </div>
+              </motion.div>
+            </div>
+          </>
+        ) : (
+          <Acknowledgment key="ack" ack={ack} onReset={reset} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -243,11 +361,13 @@ function Field({
   placeholder,
   value,
   onChange,
+  maxLength,
 }: {
   label: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  maxLength?: number;
 }) {
   return (
     <label className="block">
@@ -256,6 +376,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
         className="mt-1.5 w-full rounded-xl border border-border-subtle bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
       />
     </label>
@@ -265,19 +386,17 @@ function Field({
 function Acknowledgment({
   ack,
   onReset,
-  showcaseUrl,
 }: {
   ack: { language: string; joined: boolean } | null;
   onReset: () => void;
-  showcaseUrl: string;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="mx-auto flex max-w-lg flex-col items-center pt-6 text-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-5 py-16 text-center"
     >
-      <div className="relative mb-8 flex h-28 w-28 items-center justify-center">
+      <div className="relative mb-10 flex h-28 w-28 items-center justify-center">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
@@ -291,7 +410,7 @@ function Acknowledgment({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-tag-teal-text text-surface-white shadow-glow-teal"
+          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-accent text-surface-white shadow-glow"
         >
           <motion.svg viewBox="0 0 24 24" className="h-9 w-9" fill="none">
             <motion.path
@@ -309,32 +428,30 @@ function Acknowledgment({
       </div>
 
       <Reveal delay={0.2}>
-        <h2 className="display text-3xl font-semibold text-ink">Your voice has been heard.</h2>
+        <h2 className="display max-w-md text-3xl font-semibold text-ink sm:text-4xl">
+          Your voice has been heard.
+        </h2>
       </Reveal>
       <Reveal delay={0.3}>
-        <p className="mt-3 text-ink-muted">
+        <p className="mx-auto mt-4 max-w-md text-lg text-ink-muted">
           It&apos;s been recorded{ack?.language ? ` in ${ack.language}` : ""} and is now part of a
-          real, visible pattern of demand{" "}
+          real pattern of demand{" "}
           {ack?.joined ? "— it joined others raising the same issue." : "in your constituency."}
         </p>
       </Reveal>
 
       <Reveal delay={0.4}>
-        <div className="mt-6 flex items-center gap-2 rounded-2xl bg-tag-teal-bg px-4 py-3 text-sm text-tag-teal-text">
-          <Check className="h-4 w-4 shrink-0" />
-          That&apos;s the only promise we make — and one we&apos;ll always keep.
+        <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-border-subtle bg-surface-white px-5 py-4 text-sm text-ink-muted">
+          <Check className="mx-auto mb-2 h-5 w-5 text-accent" />
+          No tracking number, no status updates — just an honest acknowledgment. That&apos;s the
+          only promise we make.
         </div>
       </Reveal>
 
       <Reveal delay={0.5}>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button onClick={onReset} className="btn-primary">
-            Raise another voice
-          </button>
-          <a href={showcaseUrl} className="btn-ghost">
-            See outcomes others helped create
-          </a>
-        </div>
+        <button onClick={onReset} className="btn-primary mt-10 px-8 py-4 text-base">
+          Submit another voice
+        </button>
       </Reveal>
     </motion.div>
   );

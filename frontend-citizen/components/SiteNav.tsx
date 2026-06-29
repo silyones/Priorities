@@ -21,11 +21,9 @@ export function SiteNav() {
   }, [open]);
 
   return (
-    <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-ink/95 backdrop-blur-md">
+    <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-cream/95 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-5 sm:px-8">
-        <Link href="/" className="mr-4 shrink-0">
-          <Logo />
-        </Link>
+        <Logo className="mr-4 shrink-0" />
 
         <nav className="hidden flex-1 items-center gap-1 md:flex">
           {LINKS.map((l) => {
@@ -38,7 +36,7 @@ export function SiteNav() {
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                   active
                     ? "bg-accent font-semibold text-surface-white"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                    : "text-ink hover:bg-surface-white hover:text-ink"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -51,14 +49,14 @@ export function SiteNav() {
         <button
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white md:hidden"
+          className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle text-ink md:hidden"
         >
           {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-white/10 bg-ink p-3 md:hidden">
+        <div className="border-t border-border-subtle bg-cream p-3 md:hidden">
           {LINKS.map((l) => {
             const active = pathname === l.href;
             const Icon = l.icon;
@@ -69,7 +67,7 @@ export function SiteNav() {
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                   active
                     ? "bg-accent font-semibold text-surface-white"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                    : "text-ink hover:bg-surface-white"
                 }`}
               >
                 <Icon className="h-4 w-4" />
