@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from firestore_service import save_submission
+from firestore_service import get_submission_image, list_submissions, save_submission
 from gemini_service import classify_issue
 
 load_dotenv()
@@ -20,13 +20,23 @@ load_dotenv()
 PORT = int(os.getenv("PORT", "3001"))
 EXPRESS_INTERNAL_PORT = int(os.getenv("EXPRESS_INTERNAL_PORT", "3002"))
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+MP_FRONTEND_ORIGIN = os.getenv("MP_FRONTEND_ORIGIN", "http://localhost:3002")
 EXPRESS_BASE = f"http://127.0.0.1:{EXPRESS_INTERNAL_PORT}"
+
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        f"{FRONTEND_ORIGIN},{MP_FRONTEND_ORIGIN}",
+    ).split(",")
+    if origin.strip()
+]
 
 app = FastAPI(title="People's Priorities API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,6 +94,31 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
     return {"ok": True, "id": result["id"], **classification}
 
 
+@app.get("/api/submissions")
+async def get_submissions() -> list[dict[str, Any]]:
+    try:
+        return list_submissions()
+    except RuntimeError as exc:
+        message = str(exc)
+        status = 503 if "Firebase" in message else 500
+        raise HTTPException(status_code=status, detail=message) from exc
+
+
+@app.get("/api/submissions/{submission_id}/image")
+async def get_submission_image_endpoint(submission_id: str) -> dict[str, str | None]:
+    try:
+        image_base64 = get_submission_image(submission_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        status = 503 if "Firebase" in message else 500
+        raise HTTPException(status_code=status, detail=message) from exc
+
+    if image_base64 is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return {"imageBase64": image_base64}
+
+
 @app.post("/api/transcribe")
 async def transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -113,7 +148,7 @@ async def transcribe(file: UploadFile = File(...)) -> dict[str, Any]:
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
 async def proxy_to_express(path: str, request: Request) -> Any:
-    if path == "submissions":
+    if path == "submissions" or path.startswith("submissions/"):
         raise HTTPException(status_code=404, detail="Not found")
 
     url = f"{EXPRESS_BASE}/api/{path}"
