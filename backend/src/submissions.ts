@@ -11,6 +11,9 @@ export type SubmissionPayload = {
   imageBase64: string;
   latitude: number | null;
   longitude: number | null;
+  issueType?: string;
+  severity?: string;
+  aiTags?: string[];
 };
 
 export async function saveSubmissionToFirestore(payload: SubmissionPayload) {
