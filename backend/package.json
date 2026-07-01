@@ -4,7 +4,9 @@
   "description": "People's Priorities — Express API server",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "concurrently \"npm run dev:express\" \"npm run dev:fastapi\"",
+    "dev:express": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev:fastapi": "python -m uvicorn main:app --reload --host 0.0.0.0 --port 3001",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -20,6 +22,8 @@
     "@types/express": "^4.17.21",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.11.0",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }

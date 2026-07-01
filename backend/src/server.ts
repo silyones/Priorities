@@ -10,7 +10,7 @@ import { transcribeAudio } from "./sarvam";
 import { saveSubmissionToFirestore } from "./submissions";
 
 const app  = express();
-const PORT = process.env.PORT ?? 3001;
+const PORT = process.env.EXPRESS_INTERNAL_PORT ?? process.env.PORT ?? 3001;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
