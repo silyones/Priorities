@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Citizen submissions — backend reads/writes on behalf of the apps.
+    match /submissions/{submissionId} {
+      allow read, write: if true;
+    }
+  }
+}
