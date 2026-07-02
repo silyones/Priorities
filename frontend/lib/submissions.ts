@@ -49,6 +49,7 @@ export function submissionToTheme(submission: ApiSubmission): Cluster {
     urgency,
     status: "new",
     score: urgencyScore(urgency),
+    isLiveSubmission: true,
     rationale: {
       demandComponent: 0,
       urgencyComponent: 0,
@@ -94,6 +95,10 @@ export async function fetchSubmissions(): Promise<SubmissionsFetchResult> {
     console.error("[submissions] fetch error:", message);
     return { ok: false, error: message };
   }
+}
+
+export function isLiveSubmissionCluster(cluster: Cluster): boolean {
+  return cluster.isLiveSubmission === true;
 }
 
 export async function fetchSubmissionThemes(): Promise<{
