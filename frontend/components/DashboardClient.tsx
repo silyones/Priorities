@@ -1,12 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight, Layers, Megaphone, FlaskConical,
   MapPin, AlertTriangle, CheckCircle2, Users, Radio, Map, TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
+import { fetchClusters } from "@/lib/clusters";
+import { fetchSubmissionThemes } from "@/lib/submissions";
 import { StatusDot, UrgencyTag, STATUS_META } from "@/components/ui";
 
 const up = {
@@ -19,17 +23,41 @@ interface Stats {
   relayShare: number; published: number;
 }
 
-export function DashboardClient({
-  clusters,
-  stats,
-}: {
-  clusters: Cluster[];
-  stats: Stats | null;
-}) {
-  const pending       = clusters.filter((c) => c.status !== "published");
+export function DashboardClient() {
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [realThemes, setRealThemes] = useState<Cluster[]>([]);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
+
+  const dummyThemes = clusters.filter((c) => c.status !== "published");
+  const pending = [...realThemes, ...dummyThemes];
   const newThemes     = clusters.filter((c) => c.status === "new");
   const gapItems      = clusters.filter((c) => c.sanctionedProject);
   const showcaseItems = clusters.filter((c) => c.status === "published");
+
+  useEffect(() => {
+    fetchClusters()
+      .then(({ clusters: loaded, stats: loadedStats }) => {
+        setClusters(loaded);
+        setStats(loadedStats);
+      })
+      .catch((err) => {
+        console.error("Could not load clusters:", err);
+      });
+
+    fetchSubmissionThemes()
+      .then(({ themes, error }) => {
+        setRealThemes(themes);
+        setSubmissionsError(error);
+      })
+      .catch((err) => {
+        const message =
+          err instanceof Error ? err.message : "Could not load citizen submissions";
+        console.error("Could not load citizen submissions:", err);
+        setRealThemes([]);
+        setSubmissionsError(message);
+      });
+  }, []);
 
   return (
     <motion.div
@@ -49,6 +77,22 @@ export function DashboardClient({
       </motion.div>
 
       <div className="mx-auto max-w-7xl space-y-4 px-5 py-6 sm:px-8">
+
+        {submissionsError && (
+          <motion.div
+            variants={up}
+            className="flex items-start gap-3 rounded-2xl border border-tag-red-text/30 bg-tag-red-bg px-4 py-3 text-sm text-tag-red-text"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Live citizen submissions could not be loaded</p>
+              <p className="mt-0.5 text-xs text-tag-red-text/80">{submissionsError}</p>
+              <p className="mt-1 text-xs text-tag-red-text/70">
+                Demo themes below are still shown, but new Firestore submissions will not appear until this is fixed.
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         <motion.div variants={up} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile icon={<Users className="h-5 w-5" />} label="Voices counted"

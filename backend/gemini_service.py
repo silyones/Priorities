@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from typing import Any
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from PIL import Image
 
 load_dotenv()
 
@@ -56,12 +58,18 @@ Given a citizen's description and optional photo, return JSON with:
 
 Use the photo when present; otherwise rely on the description. Be concise and practical."""
 
+GEMINI_MAX_EDGE = 768
+_client: genai.Client | None = None
+
 
 def _get_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured in backend/.env")
-    return genai.Client(api_key=api_key)
+    global _client
+    if _client is None:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY is not configured in backend/.env")
+        _client = genai.Client(api_key=api_key)
+    return _client
 
 
 def _parse_data_url(image_base64: str) -> tuple[bytes | None, str]:
@@ -81,6 +89,20 @@ def _parse_data_url(image_base64: str) -> tuple[bytes | None, str]:
         return base64.b64decode(payload, validate=True), mime_type
     except Exception as exc:
         raise ValueError("Invalid imageBase64 payload") from exc
+
+
+def _prepare_gemini_image(image_bytes: bytes, mime_type: str) -> tuple[bytes, str]:
+    """Downscale photos before Gemini — classification only needs a small preview."""
+    if mime_type == "image/jpeg" and len(image_bytes) < 200_000:
+        return image_bytes, mime_type
+
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    img.thumbnail((GEMINI_MAX_EDGE, GEMINI_MAX_EDGE), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=82)
+    return out.getvalue(), "image/jpeg"
 
 
 def _normalize_result(data: dict[str, Any]) -> dict[str, Any]:
@@ -114,9 +136,10 @@ def classify_issue(image_base64: str, description: str) -> dict[str, Any]:
 
     contents: list[Any] = [PROMPT, f"Description:\n{description.strip()}"]
     if image_bytes:
+        gemini_bytes, gemini_mime = _prepare_gemini_image(image_bytes, mime_type)
         contents.insert(
             1,
-            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            types.Part.from_bytes(data=gemini_bytes, mime_type=gemini_mime),
         )
 
     response = client.models.generate_content(

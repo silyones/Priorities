@@ -3,3 +3,5 @@ dist/
 *.tsbuildinfo
 .env
 __pycache__/
+*.pyc
+tmp*.json
