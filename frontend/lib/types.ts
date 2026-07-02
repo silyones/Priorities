@@ -42,6 +42,8 @@ export interface Cluster {
   status: ClusterStatus;
   score: number;
   rationale: ScoreRationale;
+  /** Citizen Firestore submission — triage actions are session-local only. */
+  isLiveSubmission?: boolean;
   officeNote?: string;
   outcome?: string;
   publishedAt?: string;

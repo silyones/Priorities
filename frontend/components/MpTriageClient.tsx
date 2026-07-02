@@ -1,22 +1,53 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, RotateCcw, Coffee, Forward, Hand, HelpCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  RotateCcw,
+  Coffee,
+  Forward,
+  Hand,
+  HelpCircle,
+} from "lucide-react";
 import type { Cluster } from "@/lib/types";
 import { TriageCard, type TriageAction } from "@/components/TriageCard";
 import { PublishModal } from "@/components/PublishModal";
 import { API_BASE } from "@/lib/api";
+import { fetchClusters } from "@/lib/clusters";
+import {
+  fetchSubmissionThemes,
+  isLiveSubmissionCluster,
+} from "@/lib/submissions";
 
-export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
-  const [deck, setDeck] = useState<Cluster[]>(initialDeck);
+export function MpTriageClient() {
+  const [deck, setDeck] = useState<Cluster[]>([]);
   const [actedCount, setActedCount] = useState(0);
   const [publishTarget, setPublishTarget] = useState<Cluster | null>(null);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
   const total = useMemo(() => deck.length + actedCount, [deck.length, actedCount]);
 
-  function patch(id: string, body: Record<string, unknown>) {
-    fetch(`${API_BASE}/api/clusters/${id}`, {
+  const loadDeck = useCallback(async () => {
+    const [clustersResult, submissionsResult] = await Promise.all([
+      fetchClusters(),
+      fetchSubmissionThemes(),
+    ]);
+
+    const dummyDeck = clustersResult.clusters.filter((c) => c.status !== "published");
+    setDeck([...submissionsResult.themes, ...dummyDeck]);
+    setSubmissionsError(submissionsResult.error);
+  }, []);
+
+  useEffect(() => {
+    void loadDeck();
+  }, [loadDeck]);
+
+  function patchCluster(cluster: Cluster, body: Record<string, unknown>) {
+    if (isLiveSubmissionCluster(cluster)) return;
+
+    fetch(`${API_BASE}/api/clusters/${cluster.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -27,7 +58,7 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
     setDeck((d) => {
       if (d.length === 0) return d;
       const [top, ...rest] = d;
-      patch(top.id, { status: action });
+      patchCluster(top, { status: action });
       return rest;
     });
     setActedCount((c) => c + 1);
@@ -37,14 +68,18 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
     setDeck((d) => {
       if (d.length === 0) return d;
       const top = d[0];
-      patch(top.id, { officeNote: note });
+      if (!isLiveSubmissionCluster(top)) {
+        patchCluster(top, { officeNote: note });
+      }
       return [{ ...top, officeNote: note }, ...d.slice(1)];
     });
   }
 
   function confirmPublish(outcome: string) {
     if (!publishTarget) return;
-    patch(publishTarget.id, { publish: { outcome } });
+    if (!isLiveSubmissionCluster(publishTarget)) {
+      patchCluster(publishTarget, { publish: { outcome } });
+    }
     setDeck((d) => d.filter((c) => c.id !== publishTarget.id));
     setActedCount((c) => c + 1);
     setPublishTarget(null);
@@ -67,6 +102,20 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
       </div>
 
       <div className="container-pp py-8">
+        {submissionsError && (
+          <div className="mx-auto mb-6 flex max-w-md items-start gap-3 rounded-2xl border border-tag-red-text/30 bg-tag-red-bg px-4 py-3 text-sm text-tag-red-text">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Live citizen submissions could not be loaded</p>
+              <p className="mt-0.5 text-xs text-tag-red-text/80">{submissionsError}</p>
+              <p className="mt-1 text-xs text-tag-red-text/70">
+                Demo triage cards below are still shown, but new Firestore submissions will not
+                appear until this is fixed.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="mx-auto max-w-md">
           {total > 0 && (
             <div className="mb-6">
@@ -122,9 +171,7 @@ export function MpTriageClient({ initialDeck }: { initialDeck: Cluster[] }) {
                 <button
                   onClick={() => {
                     setActedCount(0);
-                    fetch(`${API_BASE}/api/clusters`)
-                      .then((r) => r.json())
-                      .then((d) => setDeck((d.clusters as Cluster[]).filter((c) => c.status !== "published")));
+                    void loadDeck();
                   }}
                   className="btn-ghost"
                 >
