@@ -1,5 +1,7 @@
 import { API_BASE } from "./api";
 
+export const SUBMISSION_POST_TIMEOUT_MS = 120_000;
+
 export type SubmissionPayload = {
   submittedFor: "myself" | "someone_else";
   name: string;
@@ -17,10 +19,17 @@ export async function saveSubmission(payload: SubmissionPayload): Promise<void> 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(SUBMISSION_POST_TIMEOUT_MS),
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error ?? "Could not save submission");
+    const detail =
+      typeof data.detail === "string"
+        ? data.detail
+        : typeof data.error === "string"
+          ? data.error
+          : "Could not save submission";
+    throw new Error(detail);
   }
 }
