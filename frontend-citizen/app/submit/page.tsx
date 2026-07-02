@@ -29,7 +29,6 @@ const COPY: Record<
     addPhoto: string;
     describeLabelRelay: string;
     describeLabelSelf: string;
-    detectedPrefix: string;
     locationAdded: string;
     manualAreaLabel: string;
     manualAreaPlaceholder: string;
@@ -80,7 +79,6 @@ const COPY: Record<
     describeLabelRelay: "What did they describe?",
     textareaPlaceholderSelf: "Describe your issue",
     textareaPlaceholderRelay: "Type what they told you, in their own words",
-    detectedPrefix: "Detected: ",
     addPhoto: "Add photo",
     useCurrentLocation: "Use my current location",
     remove: "Remove",
@@ -96,7 +94,7 @@ const COPY: Record<
     voiceNotSupported: "Voice not supported here — type instead",
     voiceMicDenied: "Microphone access denied. Type your issue instead.",
     ackTitle: "Your voice has been heard.",
-    ackBody: "It's been recorded{language} and is now part of a real pattern of demand in your constituency.",
+    ackBody: "It's been recorded and is now part of a real pattern of demand in your constituency.",
     ackNote:
       "No tracking number, no status updates — just an honest acknowledgment. That's the only promise we make.",
     submitAnother: "Submit another voice",
@@ -120,7 +118,6 @@ const COPY: Record<
     describeLabelRelay: "उन्होंने क्या बताया?",
     textareaPlaceholderSelf: "अपनी समस्या का वर्णन करें",
     textareaPlaceholderRelay: "उन्होंने आपको जो बताया, उसे उनके अपने शब्दों में टाइप करें",
-    detectedPrefix: "पहचानी गई भाषा: ",
     addPhoto: "फोटो जोड़ें",
     useCurrentLocation: "मेरा वर्तमान स्थान उपयोग करें",
     remove: "हटाएं",
@@ -137,7 +134,7 @@ const COPY: Record<
     voiceMicDenied: "माइक्रोफोन की अनुमति नहीं मिली। इसके बजाय अपनी समस्या टाइप करें।",
     ackTitle: "आपकी आवाज सुन ली गई है।",
     ackBody:
-      "इसे{language} दर्ज किया गया है और अब यह आपके निर्वाचन क्षेत्र में मांग के एक वास्तविक पैटर्न का हिस्सा है।",
+      "इसे दर्ज किया गया है और अब यह आपके निर्वाचन क्षेत्र में मांग के एक वास्तविक पैटर्न का हिस्सा है।",
     ackNote:
       "कोई ट्रैकिंग नंबर नहीं, कोई स्थिति अपडेट नहीं — बस एक ईमानदार स्वीकृति। यही एकमात्र वादा है जो हम करते हैं।",
     submitAnother: "एक और आवाज सबमिट करें",
@@ -161,7 +158,6 @@ const COPY: Record<
     describeLabelRelay: "ಅವರು ಏನು ವಿವರಿಸಿದರು?",
     textareaPlaceholderSelf: "ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಿ",
     textareaPlaceholderRelay: "ಅವರು ನಿಮಗೆ ಹೇಳಿದ್ದನ್ನು ಅವರ ಸ್ವಂತ ಮಾತುಗಳಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ",
-    detectedPrefix: "ಪತ್ತೆಯಾಗಿದೆ: ",
     addPhoto: "ಫೋಟೋ ಸೇರಿಸಿ",
     useCurrentLocation: "ನನ್ನ ಪ್ರಸ್ತುತ ಸ್ಥಳವನ್ನು ಬಳಸಿ",
     remove: "ತೆಗೆದುಹಾಕಿ",
@@ -178,7 +174,7 @@ const COPY: Record<
     voiceMicDenied: "ಮೈಕ್ರೊಫೋನ್ ಪ್ರವೇಶ ನಿರಾಕರಿಸಲಾಗಿದೆ. ಬದಲಿಗೆ ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ.",
     ackTitle: "ನಿಮ್ಮ ಧ್ವನಿಯನ್ನು ಕೇಳಲಾಗಿದೆ.",
     ackBody:
-      "ಇದನ್ನು{language} ದಾಖಲಿಸಲಾಗಿದೆ ಮತ್ತು ಈಗ ಅದು ನಿಮ್ಮ ಕ್ಷೇತ್ರದಲ್ಲಿ ಬೇಡಿಕೆಯ ನೈಜ ಮಾದರಿಯ ಭಾಗವಾಗಿದೆ.",
+      "ಇದನ್ನು ದಾಖಲಿಸಲಾಗಿದೆ ಮತ್ತು ಈಗ ಅದು ನಿಮ್ಮ ಕ್ಷೇತ್ರದಲ್ಲಿ ಬೇಡಿಕೆಯ ನೈಜ ಮಾದರಿಯ ಭಾಗವಾಗಿದೆ.",
     ackNote:
       "ಟ್ರ್ಯಾಕಿಂಗ್ ಸಂಖ್ಯೆ ಇಲ್ಲ, ಸ್ಥಿತಿ ನವೀಕರಣಗಳಿಲ್ಲ — ಕೇವಲ ಪ್ರಾಮಾಣಿಕ ಸ್ವೀಕೃತಿ. ಇದೇ ನಾವು ಮಾಡುವ ಏಕೈಕ ಭರವಸೆ.",
     submitAnother: "ಇನ್ನೊಂದು ಧ್ವನಿಯನ್ನು ಸಲ್ಲಿಸಿ",
@@ -202,7 +198,6 @@ const COPY: Record<
     describeLabelRelay: "அவர்கள் என்ன விவரித்தார்கள்?",
     textareaPlaceholderSelf: "உங்கள் பிரச்சினையை விவரிக்கவும்",
     textareaPlaceholderRelay: "அவர்கள் உங்களிடம் சொன்னதை, அவர்களின் சொந்த வார்த்தைகளில் தட்டச்சு செய்யுங்கள்",
-    detectedPrefix: "கண்டறியப்பட்டது: ",
     addPhoto: "புகைப்படம் சேர்க்கவும்",
     useCurrentLocation: "எனது தற்போதைய இருப்பிடத்தைப் பயன்படுத்தவும்",
     remove: "அகற்று",
@@ -219,7 +214,7 @@ const COPY: Record<
     voiceMicDenied: "மைக்ரோஃபோன் அணுகல் மறுக்கப்பட்டது. பதிலாக உங்கள் பிரச்சினையை தட்டச்சு செய்யுங்கள்.",
     ackTitle: "உங்கள் குரல் கேட்கப்பட்டுள்ளது.",
     ackBody:
-      "இது{language} பதிவு செய்யப்பட்டுள்ளது, இப்போது உங்கள் தொகுதியில் தேவையின் உண்மையான வடிவத்தின் ஒரு பகுதியாக உள்ளது.",
+      "இது பதிவு செய்யப்பட்டுள்ளது, இப்போது உங்கள் தொகுதியில் தேவையின் உண்மையான வடிவத்தின் ஒரு பகுதியாக உள்ளது.",
     ackNote:
       "கண்காணிப்பு எண் இல்லை, நிலை புதுப்பிப்புகள் இல்லை — நேர்மையான ஒப்புகை மட்டுமே. அதுவே நாங்கள் தரும் ஒரே உறுதிமொழி.",
     submitAnother: "மற்றொரு குரலைச் சமர்ப்பிக்கவும்",
@@ -243,7 +238,6 @@ const COPY: Record<
     describeLabelRelay: "వారు ఏమి వివరించారు?",
     textareaPlaceholderSelf: "మీ సమస్యను వివరించండి",
     textareaPlaceholderRelay: "వారు మీకు చెప్పింది వారి సొంత మాటల్లో టైప్ చేయండి",
-    detectedPrefix: "గుర్తించబడింది: ",
     addPhoto: "ఫోటో జోడించండి",
     useCurrentLocation: "నా ప్రస్తుత స్థానాన్ని ఉపయోగించండి",
     remove: "తీసివేయండి",
@@ -260,7 +254,7 @@ const COPY: Record<
     voiceMicDenied: "మైక్రోఫోన్ యాక్సెస్ నిరాకరించబడింది. బదులుగా మీ సమస్యను టైప్ చేయండి.",
     ackTitle: "మీ గొంతు వినబడింది.",
     ackBody:
-      "ఇది{language} నమోదు చేయబడింది మరియు ఇప్పుడు మీ నియోజకవర్గంలో డిమాండ్ యొక్క నిజమైన నమూనాలో భాగం.",
+      "ఇది నమోదు చేయబడింది మరియు ఇప్పుడు మీ నియోజకవర్గంలో డిమాండ్ యొక్క నిజమైన నమూనాలో భాగం.",
     ackNote:
       "ట్రాకింగ్ నంబర్ లేదు, స్థితి నవీకరణలు లేవు — కేవలం నిజాయితీగల అంగీకారం. మేము చేసే ఏకైక వాగ్దానం అదే.",
     submitAnother: "మరొక గొంతును సమర్పించండి",
@@ -284,7 +278,6 @@ const COPY: Record<
     describeLabelRelay: "তারা কী বর্ণনা করেছে?",
     textareaPlaceholderSelf: "আপনার সমস্যা বর্ণনা করুন",
     textareaPlaceholderRelay: "তারা আপনাকে যা বলেছে তা তাদের নিজের ভাষায় টাইপ করুন",
-    detectedPrefix: "শনাক্ত করা হয়েছে: ",
     addPhoto: "ছবি যোগ করুন",
     useCurrentLocation: "আমার বর্তমান অবস্থান ব্যবহার করুন",
     remove: "সরান",
@@ -301,7 +294,7 @@ const COPY: Record<
     voiceMicDenied: "মাইক্রোফোন অ্যাক্সেস প্রত্যাখ্যান করা হয়েছে। পরিবর্তে আপনার সমস্যা টাইপ করুন।",
     ackTitle: "আপনার কণ্ঠস্বর শোনা হয়েছে।",
     ackBody:
-      "এটি{language} রেকর্ড করা হয়েছে এবং এখন আপনার নির্বাচনী এলাকায় চাহিদার একটি বাস্তব প্যাটার্নের অংশ।",
+      "এটি রেকর্ড করা হয়েছে এবং এখন আপনার নির্বাচনী এলাকায় চাহিদার একটি বাস্তব প্যাটার্নের অংশ।",
     ackNote:
       "কোনো ট্র্যাকিং নম্বর নেই, কোনো স্ট্যাটাস আপডেট নেই — শুধুমাত্র একটি সৎ স্বীকৃতি। এটাই আমাদের একমাত্র প্রতিশ্রুতি।",
     submitAnother: "আরেকটি কণ্ঠস্বর জমা দিন",
@@ -324,15 +317,6 @@ function useSiteLanguage(): UILanguage {
   return language;
 }
 
-function detectLanguage(text: string): string {
-  if (/[ऀ-ॿ]/.test(text)) return "Hindi";
-  if (/[஀-௿]/.test(text)) return "Tamil";
-  if (/[ఀ-౿]/.test(text)) return "Telugu";
-  if (/[ಀ-೿]/.test(text)) return "Kannada";
-  if (/[ঀ-৿]/.test(text)) return "Bengali";
-  return "English";
-}
-
 type Mode = "self" | "relay";
 
 export default function SubmitPage() {
@@ -351,10 +335,9 @@ export default function SubmitPage() {
   const [showManualArea, setShowManualArea] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [ack, setAck] = useState<{ language: string } | null>(null);
+  const [ack, setAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const language = useMemo(() => (text.trim() ? detectLanguage(text) : null), [text]);
   const canSubmit = text.trim().length > 8 && status !== "sending";
 
   async function handleSubmit(e: React.FormEvent) {
@@ -377,7 +360,7 @@ export default function SubmitPage() {
         longitude: coords?.lng ?? null,
       });
 
-      setAck({ language: detectLanguage(text) });
+      setAck(true);
       setStatus("done");
     } catch (err) {
       // Surface the real reason instead of a generic message that hides it.
@@ -399,7 +382,7 @@ export default function SubmitPage() {
     setShowManualArea(false);
     setStatus("idle");
     setSubmitError(null);
-    setAck(null);
+    setAck(false);
   }
 
   function handlePhotoChange(file: File | null) {
@@ -527,32 +510,17 @@ export default function SubmitPage() {
                         }}
                       />
                     </div>
-                    <div className="relative">
-                      <textarea
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        rows={5}
-                        placeholder={
-                          mode === "self"
-                            ? copy.textareaPlaceholderSelf
-                            : copy.textareaPlaceholderRelay
-                        }
-                        className="w-full resize-none rounded-2xl border border-border-subtle bg-cream p-4 text-[15px] leading-relaxed text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
-                      />
-                      <AnimatePresence>
-                        {language && (
-                          <motion.span
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="pill absolute bottom-3 right-3"
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-tag-teal-text" />
-                            {copy.detectedPrefix}{language}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                    <textarea
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      rows={5}
+                      placeholder={
+                        mode === "self"
+                          ? copy.textareaPlaceholderSelf
+                          : copy.textareaPlaceholderRelay
+                      }
+                      className="w-full resize-none rounded-2xl border border-border-subtle bg-cream p-4 text-[15px] leading-relaxed text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
+                    />
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -724,7 +692,7 @@ function Acknowledgment({
   onReset,
   copy,
 }: {
-  ack: { language: string } | null;
+  ack: boolean;
   onReset: () => void;
   copy: (typeof COPY)["english"];
 }) {
@@ -772,7 +740,7 @@ function Acknowledgment({
       </Reveal>
       <Reveal delay={0.3}>
         <p className="mx-auto mt-4 max-w-md text-lg text-ink-muted">
-          {copy.ackBody.replace("{language}", ack?.language ? ` in ${ack.language}` : "")}
+          {copy.ackBody}
         </p>
       </Reveal>
 
