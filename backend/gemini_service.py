@@ -126,6 +126,12 @@ def _normalize_result(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def default_classification() -> dict[str, Any]:
+    """Safe fallback used when Gemini classification is unavailable, so a
+    citizen's submission still saves instead of being blocked entirely."""
+    return _normalize_result({})
+
+
 def classify_issue(image_base64: str, description: str) -> dict[str, Any]:
     """Classify a civic issue using Gemini multimodal input."""
     if not description or not description.strip():
@@ -142,15 +148,21 @@ def classify_issue(image_base64: str, description: str) -> dict[str, Any]:
             types.Part.from_bytes(data=gemini_bytes, mime_type=gemini_mime),
         )
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_json_schema=CLASSIFICATION_SCHEMA,
-            temperature=0.2,
-        ),
-    )
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_json_schema=CLASSIFICATION_SCHEMA,
+                temperature=0.2,
+            ),
+        )
+    except Exception as exc:
+        # Normalize any Google API client error (auth, quota, network, etc.)
+        # into a RuntimeError so callers get one consistent exception type
+        # to catch, instead of the raw google.genai SDK exception escaping.
+        raise RuntimeError(f"Gemini request failed: {exc}") from exc
 
     text = (response.text or "").strip()
     if not text:

@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from firestore_service import get_submission_image, list_submissions, save_submission
-from gemini_service import classify_issue
+from gemini_service import classify_issue, default_classification
 from sarvam_service import transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
 from ts_bridge import warm_bridge
@@ -109,11 +109,15 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
         )
         classify_elapsed = time.perf_counter() - classify_started
     except ValueError as exc:
+        # Genuine bad input (e.g. empty description) — the user needs to know.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
-        message = str(exc)
-        status = 503 if "GEMINI_API_KEY" in message else 502
-        raise HTTPException(status_code=status, detail=message) from exc
+        # AI classification is unavailable (bad/expired key, quota, network,
+        # etc.) — never block a citizen's submission on this. Fall back to a
+        # safe default classification and still save the submission.
+        logger.warning("Gemini classification failed, using fallback: %s", exc)
+        classification = default_classification()
+        classify_elapsed = 0.0
 
     payload = {
         "submittedFor": body.submittedFor,

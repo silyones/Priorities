@@ -18,7 +18,9 @@ export async function transcribeSpeech(audio: Blob): Promise<TranscribeResponse>
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error ?? "Could not transcribe audio");
+    // FastAPI's HTTPException serializes errors as { detail: "..." },
+    // not { error: "..." } — read the field the backend actually sends.
+    throw new Error(data.detail ?? data.error ?? "Could not transcribe audio");
   }
   return data;
 }

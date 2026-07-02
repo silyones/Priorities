@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, LayoutDashboard, Layers, Megaphone, FlaskConical } from "lucide-react";
+import { Menu, X, LayoutDashboard, Layers, Megaphone, FlaskConical, ChevronDown } from "lucide-react";
 import { Logo } from "./Logo";
+import {
+  TRANSLATE_LANGUAGES,
+  changeTranslateLanguage,
+  getStoredLanguage,
+  type TranslateCode,
+} from "./GoogleTranslate";
 
 const LINKS = [
   { href: "/",         label: "Dashboard", icon: LayoutDashboard },
@@ -16,11 +22,20 @@ const LINKS = [
 export function SiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [language, setLanguage] = useState<TranslateCode>("en");
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
   }, [open]);
+  useEffect(() => {
+    setLanguage(getStoredLanguage());
+  }, []);
+
+  function handleLanguageChange(next: TranslateCode) {
+    setLanguage(next);
+    changeTranslateLanguage(next);
+  }
 
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-cream/95 backdrop-blur-md">
@@ -49,6 +64,23 @@ export function SiteNav() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
+          <div className="relative">
+            <select
+              value={language}
+              onChange={(e) => handleLanguageChange(e.target.value as TranslateCode)}
+              className="notranslate appearance-none rounded-lg border border-accent bg-surface-white py-1.5 pl-3 pr-9 text-sm text-ink outline-none focus:border-accent"
+            >
+              {TRANSLATE_LANGUAGES.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden
+              className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
+            />
+          </div>
           <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-white px-3 py-1.5">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-ink">
               M

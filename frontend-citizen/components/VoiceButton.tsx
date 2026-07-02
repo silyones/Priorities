@@ -15,9 +15,24 @@ function pickMimeType(): string | undefined {
 
 export function VoiceButton({
   onTranscript,
+  labels,
 }: {
   onTranscript: (text: string) => void;
+  labels?: {
+    listening: string;
+    micDenied: string;
+    notSupported: string;
+    speak: string;
+    transcribing: string;
+  };
 }) {
+  const t = labels ?? {
+    listening: "Listening… tap to stop",
+    micDenied: "Microphone access denied. Type your issue instead.",
+    notSupported: "Voice not supported here — type instead",
+    speak: "Speak",
+    transcribing: "Transcribing…",
+  };
   const [phase, setPhase] = useState<"idle" | "recording" | "processing">("idle");
   const [supported, setSupported] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +115,7 @@ export function VoiceButton({
       }, MAX_RECORDING_MS);
     } catch {
       cleanupStream();
-      setError("Microphone access denied. Type your issue instead.");
+      setError(t.micDenied);
       setPhase("idle");
     }
   }, [cleanupStream, stopRecording]);
@@ -114,7 +129,7 @@ export function VoiceButton({
   if (!supported) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
-        <MicOff className="h-3.5 w-3.5" /> Voice not supported here — type instead
+        <MicOff className="h-3.5 w-3.5" /> {t.notSupported}
       </span>
     );
   }
@@ -147,11 +162,7 @@ export function VoiceButton({
           ) : (
             <Mic className="h-4 w-4" />
           )}
-          {processing
-            ? "Transcribing…"
-            : listening
-              ? "Listening… tap to stop"
-              : "Speak"}
+          {processing ? t.transcribing : listening ? t.listening : t.speak}
         </span>
       </button>
       {error && <p className="max-w-[14rem] text-right text-xs text-tag-red-text">{error}</p>}

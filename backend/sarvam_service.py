@@ -14,7 +14,13 @@ def transcribe_audio(content: bytes, mime_type: str, filename: str) -> dict[str,
     if not api_key:
         raise RuntimeError("SARVAM_API_KEY is not configured on the server")
 
-    files = {"file": (filename, content, mime_type)}
+    # Browsers report MediaRecorder output with codec parameters, e.g.
+    # "audio/webm;codecs=opus". Sarvam's allowlist only matches the bare
+    # MIME type ("audio/webm"), so strip any ";codecs=..." suffix before
+    # sending the file — otherwise every browser recording is rejected.
+    base_mime_type = mime_type.split(";", 1)[0].strip()
+
+    files = {"file": (filename, content, base_mime_type)}
     data = {"model": "saaras:v3", "mode": "transcribe"}
 
     with httpx.Client(timeout=120.0) as client:
