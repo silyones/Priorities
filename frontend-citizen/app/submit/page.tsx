@@ -16,7 +16,13 @@ import {
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
 import { compressImageFile } from "@/lib/compressImage";
-import { initOfflineQueue, submitOffline } from "@/lib/offlineQueue";
+import {
+  getOrCreateDraftId,
+  initOfflineQueue,
+  loadDraft,
+  saveDraft,
+  submitOffline,
+} from "@/lib/offlineQueue";
 
 type UILanguage = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali";
 
@@ -337,10 +343,48 @@ export default function SubmitPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [ack, setAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftIdRef = useRef("");
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     initOfflineQueue();
+
+    const draftId = getOrCreateDraftId();
+    draftIdRef.current = draftId;
+    loadDraft(draftId)
+      .then((draft) => {
+        if (!draft) return;
+        setMode(draft.mode);
+        setIssueTitle(draft.issueTitle);
+        setAssistedPerson(draft.assistedPerson);
+        setText(draft.text);
+        setRole(draft.role);
+        setLocality(draft.locality);
+        setManualArea(draft.manualArea);
+      })
+      .finally(() => {
+        draftLoadedRef.current = true;
+      });
   }, []);
+
+  // Autosave the draft as the citizen types/records, so in-progress work
+  // survives a crash or closed tab. Skipped until the initial load above
+  // completes, so we don't overwrite a stored draft with blank state.
+  useEffect(() => {
+    if (!draftLoadedRef.current || status === "done") return;
+    const timer = setTimeout(() => {
+      void saveDraft(draftIdRef.current, {
+        mode,
+        issueTitle,
+        assistedPerson,
+        text,
+        role,
+        locality,
+        manualArea,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, status]);
 
   const canSubmit = text.trim().length > 8 && status !== "sending";
 
@@ -355,17 +399,20 @@ export default function SubmitPage() {
       // Writes to the offline queue first and resolves immediately — the
       // network attempt happens in the background, so a citizen never sees
       // a network error here. Only a local storage failure reaches catch.
-      await submitOffline({
-        submittedFor: mode === "self" ? "myself" : "someone_else",
-        name: assistedPerson.trim(),
-        role: role.trim(),
-        locality: (mode === "relay" ? locality : manualArea).trim(),
-        topic: issueTitle.trim(),
-        description: text.trim(),
-        imageBase64,
-        latitude: coords?.lat ?? null,
-        longitude: coords?.lng ?? null,
-      });
+      await submitOffline(
+        {
+          submittedFor: mode === "self" ? "myself" : "someone_else",
+          name: assistedPerson.trim(),
+          role: role.trim(),
+          locality: (mode === "relay" ? locality : manualArea).trim(),
+          topic: issueTitle.trim(),
+          description: text.trim(),
+          imageBase64,
+          latitude: coords?.lat ?? null,
+          longitude: coords?.lng ?? null,
+        },
+        draftIdRef.current,
+      );
 
       setAck(true);
       setStatus("done");
