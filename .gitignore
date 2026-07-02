@@ -38,3 +38,7 @@ next-env.d.ts
 # Misc
 .vercel
 .turbo
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

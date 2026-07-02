@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
-import { fileToBase64 } from "@/lib/fileToBase64";
+import { compressImageFile } from "@/lib/compressImage";
 import { saveSubmission } from "@/lib/submissions";
 
 function detectLanguage(text: string): string {
@@ -55,7 +55,7 @@ export default function SubmitPage() {
     setStatus("sending");
     setSubmitError(null);
     try {
-      const imageBase64 = photoFile ? await fileToBase64(photoFile) : "";
+      const imageBase64 = photoFile ? await compressImageFile(photoFile) : "";
 
       await saveSubmission({
         submittedFor: mode === "self" ? "myself" : "someone_else",
