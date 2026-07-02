@@ -5,7 +5,11 @@ import fs from "fs";
 import fsPromises from "fs/promises";
 import readline from "readline";
 import { saveSubmissionToFirestore } from "./submissions";
-import { getSubmissionImage, listSubmissions } from "./submission_queries";
+import {
+  getSubmissionById,
+  getSubmissionImage,
+  listSubmissions,
+} from "./submission_queries";
 import { actOnCluster, getClusters, getShowcase, getStats, submit } from "./store";
 
 type BridgeRequest = {
@@ -41,6 +45,13 @@ async function handleRequest(request: BridgeRequest) {
       if (!id) throw new Error("Submission id is required");
       const imageBase64 = await getSubmissionImage(id);
       return { ok: true, result: { imageBase64 } };
+    }
+    case "firestore:get": {
+      const id = request.id?.trim();
+      if (!id) throw new Error("Submission id is required");
+      const submission = await getSubmissionById(id);
+      if (!submission) throw new Error("Submission not found");
+      return { ok: true, result: submission };
     }
     case "store:clusters": {
       return { ok: true, result: { clusters: getClusters(), stats: getStats() } };
