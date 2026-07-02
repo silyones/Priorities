@@ -10,17 +10,21 @@ type Language = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali"
 
 const LANG_OPTIONS: { code: Language; label: string }[] = [
   { code: "english", label: "English" },
-  { code: "kannada", label: "Kannada" },
-  { code: "hindi", label: "Hindi" },
-  { code: "tamil", label: "Tamil" },
-  { code: "telugu", label: "Telugu" },
-  { code: "bengali", label: "Bengali" },
+  { code: "kannada", label: "ಕನ್ನಡ" },
+  { code: "hindi", label: "हिंदी" },
+  { code: "tamil", label: "தமிழ்" },
+  { code: "telugu", label: "తెలుగు" },
+  { code: "bengali", label: "বাংলা" },
 ];
 
-const LINKS = [
-  { href: "/",       label: "Home",   icon: Home },
-  { href: "/submit", label: "Submit", icon: Mic  },
-];
+const NAV_COPY: Record<Language, { home: string; language: string; submit: string }> = {
+  english: { home: "Home", submit: "Submit", language: "Language" },
+  kannada: { home: "ಮುಖಪುಟ", submit: "ಸಲ್ಲಿಸಿ", language: "ಭಾಷೆ" },
+  hindi: { home: "होम", submit: "सबमिट करें", language: "भाषा" },
+  tamil: { home: "முகப்பு", submit: "சமர்ப்பிக்கவும்", language: "மொழி" },
+  telugu: { home: "హోమ్", submit: "సమర్పించండి", language: "భాష" },
+  bengali: { home: "হোম", submit: "জমা দিন", language: "ভাষা" },
+};
 
 export function SiteNav() {
   const pathname = usePathname();
@@ -41,6 +45,12 @@ export function SiteNav() {
     localStorage.setItem("citizen-language", next);
     window.dispatchEvent(new Event("citizen-language-change"));
   }
+
+  const navCopy = NAV_COPY[language];
+  const LINKS = [
+    { href: "/", label: navCopy.home, icon: Home },
+    { href: "/submit", label: navCopy.submit, icon: Mic },
+  ];
 
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-cream/95 backdrop-blur-md">
@@ -70,7 +80,7 @@ export function SiteNav() {
 
         <div className="ml-auto hidden items-center md:flex">
           <label className="inline-flex items-center gap-2 text-sm text-ink">
-            <span className="font-medium">Language</span>
+            <span className="font-medium">{navCopy.language}</span>
             <div className="relative">
               <select
                 value={language}
