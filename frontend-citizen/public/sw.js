@@ -10,9 +10,10 @@ const SHELL_CACHE = "pp-shell-v1";
 const SHELL_URLS = ["/submit"];
 
 const DB_NAME = "pp_offline_db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_SUBMISSIONS = "submissions";
 const STORE_CONFIG = "config";
+const STORE_DRAFTS = "drafts";
 
 const BASE_RETRY_DELAY_MS = 5000;
 const MAX_RETRY_DELAY_MS = 5 * 60 * 1000;
@@ -91,6 +92,9 @@ function openDb() {
       if (!db.objectStoreNames.contains(STORE_CONFIG)) {
         db.createObjectStore(STORE_CONFIG, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(STORE_DRAFTS)) {
+        db.createObjectStore(STORE_DRAFTS, { keyPath: "id" });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -132,6 +136,38 @@ function saveQueued(record) {
   return withStore(STORE_SUBMISSIONS, "readwrite", (store) => store.put(record));
 }
 
+function clearDraft(id) {
+  return withStore(STORE_DRAFTS, "readwrite", (store) => store.delete(id));
+}
+
+// Atomically checks a record is still pending and flips it to "sending" in
+// one transaction — mirrors lib/offlineQueue.ts's claimQueuedItem. Needed
+// because this service worker and the page each hold their own IndexedDB
+// connection; without an atomic check-and-set, both could read the same
+// item as "pending" and send it twice.
+function claimQueuedItem(id) {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_SUBMISSIONS, "readwrite");
+        const store = tx.objectStore(STORE_SUBMISSIONS);
+        const getReq = store.get(id);
+        getReq.onsuccess = () => {
+          const item = getReq.result;
+          if (!item || item.status !== "pending" || item.nextRetryAt > Date.now()) {
+            resolve(null);
+            return;
+          }
+          item.status = "sending";
+          const putReq = store.put(item);
+          putReq.onsuccess = () => resolve(item);
+          putReq.onerror = () => reject(putReq.error);
+        };
+        getReq.onerror = () => reject(getReq.error);
+      }),
+  );
+}
+
 function backoffDelay(attempts) {
   return Math.min(MAX_RETRY_DELAY_MS, BASE_RETRY_DELAY_MS * Math.pow(2, attempts));
 }
@@ -141,11 +177,11 @@ async function syncPendingSubmissions() {
   const items = await getAllQueued();
   const now = Date.now();
 
-  for (const item of items) {
-    if (item.status === "sending" || item.nextRetryAt > now) continue;
+  for (const raw of items) {
+    if (raw.status !== "pending" || raw.nextRetryAt > now) continue;
 
-    item.status = "sending";
-    await saveQueued(item);
+    const item = await claimQueuedItem(raw.id);
+    if (!item) continue; // already claimed elsewhere (e.g. an open tab)
 
     try {
       const res = await fetch(`${apiBase}/api/submissions`, {
@@ -155,6 +191,9 @@ async function syncPendingSubmissions() {
       });
       if (!res.ok) throw new Error("submission failed");
       await removeQueued(item.id);
+      // Confirmed 200 — safe to drop the autosaved draft, even when this
+      // sync ran fully in the background with no tab open.
+      if (item.draftId) await clearDraft(item.draftId);
     } catch {
       item.status = "pending";
       item.attempts += 1;
