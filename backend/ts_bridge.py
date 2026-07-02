@@ -69,6 +69,36 @@ def warm_bridge() -> None:
     bridge_call({"action": "ping"})
 
 
+def _reset_worker() -> None:
+    global _worker_proc
+    if _worker_proc is None:
+        return
+    try:
+        _worker_proc.kill()
+    except OSError:
+        pass
+    _worker_proc = None
+
+
+def _bridge_call_once(wire_request: dict[str, Any], payload_path: str | None) -> Any:
+    proc = _ensure_worker()
+    assert proc.stdin is not None
+    assert proc.stdout is not None
+
+    proc.stdin.write(json.dumps(wire_request) + "\n")
+    proc.stdin.flush()
+
+    line = proc.stdout.readline()
+    if not line:
+        _reset_worker()
+        raise RuntimeError("Bridge worker exited unexpectedly")
+
+    data = json.loads(line)
+    if not data.get("ok"):
+        raise RuntimeError(data.get("error") or "Bridge request failed")
+    return data["result"]
+
+
 def bridge_call(request: dict[str, Any]) -> Any:
     payload_path: str | None = None
     wire_request = request
@@ -83,25 +113,13 @@ def bridge_call(request: dict[str, Any]) -> Any:
                 json.dump(request["payload"], handle)
             wire_request = {"action": "firestore:save", "payloadPath": payload_path}
 
-    with _worker_lock:
-        proc = _ensure_worker()
-        assert proc.stdin is not None
-        assert proc.stdout is not None
-
-        try:
-            proc.stdin.write(json.dumps(wire_request) + "\n")
-            proc.stdin.flush()
-
-            line = proc.stdout.readline()
-            global _worker_proc
-            if not line:
-                _worker_proc = None
-                raise RuntimeError("Bridge worker exited unexpectedly")
-
-            data = json.loads(line)
-            if not data.get("ok"):
-                raise RuntimeError(data.get("error") or "Bridge request failed")
-            return data["result"]
-        finally:
-            if payload_path and os.path.exists(payload_path):
-                os.unlink(payload_path)
+    try:
+        with _worker_lock:
+            try:
+                return _bridge_call_once(wire_request, payload_path)
+            except (RuntimeError, json.JSONDecodeError):
+                _reset_worker()
+                return _bridge_call_once(wire_request, payload_path)
+    finally:
+        if payload_path and os.path.exists(payload_path):
+            os.unlink(payload_path)
