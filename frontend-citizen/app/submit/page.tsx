@@ -16,7 +16,7 @@ import {
 import { VoiceButton } from "@/components/VoiceButton";
 import { Reveal } from "@/components/motion";
 import { compressImageFile } from "@/lib/compressImage";
-import { saveSubmission } from "@/lib/submissions";
+import { initOfflineQueue, submitOffline } from "@/lib/offlineQueue";
 
 type UILanguage = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali";
 
@@ -338,6 +338,10 @@ export default function SubmitPage() {
   const [ack, setAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    initOfflineQueue();
+  }, []);
+
   const canSubmit = text.trim().length > 8 && status !== "sending";
 
   async function handleSubmit(e: React.FormEvent) {
@@ -348,7 +352,10 @@ export default function SubmitPage() {
     try {
       const imageBase64 = photoFile ? await compressImageFile(photoFile) : "";
 
-      await saveSubmission({
+      // Writes to the offline queue first and resolves immediately — the
+      // network attempt happens in the background, so a citizen never sees
+      // a network error here. Only a local storage failure reaches catch.
+      await submitOffline({
         submittedFor: mode === "self" ? "myself" : "someone_else",
         name: assistedPerson.trim(),
         role: role.trim(),
@@ -363,7 +370,6 @@ export default function SubmitPage() {
       setAck(true);
       setStatus("done");
     } catch (err) {
-      // Surface the real reason instead of a generic message that hides it.
       setSubmitError(err instanceof Error ? err.message : "Could not save your submission. Please try again.");
       setStatus("idle");
     }
