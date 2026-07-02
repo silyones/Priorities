@@ -14,8 +14,14 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from firestore_service import get_submission_image, list_submissions, save_submission
+from firestore_service import (
+    get_submission,
+    get_submission_image,
+    list_submissions,
+    save_submission,
+)
 from gemini_service import classify_issue, default_classification
+from groq_service import analyze_issue, default_analysis
 from sarvam_service import transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
 from ts_bridge import warm_bridge
@@ -79,6 +85,18 @@ class ClusterPatchBody(BaseModel):
     officeNote: str | None = None
     gapNote: str | None = None
     publish: dict[str, Any] | None = None
+
+
+class SubmissionAnalysisBody(BaseModel):
+    id: str
+    topic: str = ""
+    description: str
+    issueType: str = ""
+    severity: str = ""
+    aiTags: list[str] = []
+    locality: str = ""
+    submittedFor: str = ""
+    hasImage: bool = False
 
 
 def _runtime_error_status(message: str, firebase: bool = False) -> int:
@@ -163,6 +181,98 @@ async def get_submissions() -> list[dict[str, Any]]:
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
+
+
+@app.get("/api/submissions/{submission_id}")
+async def get_submission_endpoint(submission_id: str) -> dict[str, Any]:
+    try:
+        submission = await asyncio.to_thread(get_submission, submission_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    return submission
+
+
+async def _run_submission_analysis(
+    submission_id: str,
+    submission: dict[str, Any],
+) -> dict[str, Any]:
+    image_base64 = ""
+    if submission.get("hasImage"):
+        try:
+            image_base64 = await asyncio.to_thread(get_submission_image, submission_id) or ""
+        except RuntimeError:
+            image_base64 = ""
+
+    try:
+        analysis_started = time.perf_counter()
+        analysis = await asyncio.to_thread(
+            analyze_issue,
+            image_base64=image_base64,
+            topic=str(submission.get("topic", "")),
+            description=str(submission.get("description", "")),
+            issue_type=str(submission.get("issueType", "")),
+            severity=str(submission.get("severity", "")),
+            ai_tags=submission.get("aiTags") if isinstance(submission.get("aiTags"), list) else [],
+            locality=str(submission.get("locality", "")),
+            submitted_for=str(submission.get("submittedFor", "")),
+        )
+        analysis_elapsed = time.perf_counter() - analysis_started
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logger.warning("Groq analysis failed, using fallback: %s", exc)
+        analysis = default_analysis(
+            description=str(submission.get("description", "")),
+            issue_type=str(submission.get("issueType", "")),
+            severity=str(submission.get("severity", "")),
+            has_image=bool(submission.get("hasImage")),
+        )
+        analysis_elapsed = 0.0
+
+    logger.info(
+        "submission analysis id=%s elapsed=%.2fs",
+        submission_id,
+        analysis_elapsed,
+    )
+
+    return {"ok": True, "submissionId": submission_id, **analysis}
+
+
+@app.get("/api/submissions/{submission_id}/analysis")
+async def get_submission_analysis(submission_id: str) -> dict[str, Any]:
+    try:
+        submission = await asyncio.to_thread(get_submission, submission_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    return await _run_submission_analysis(submission_id, submission)
+
+
+@app.post("/api/submissions/analyze")
+async def analyze_submission(body: SubmissionAnalysisBody) -> dict[str, Any]:
+    if not body.description.strip():
+        raise HTTPException(status_code=400, detail="Description is required")
+
+    submission = {
+        "topic": body.topic.strip(),
+        "description": body.description.strip(),
+        "issueType": body.issueType.strip(),
+        "severity": body.severity.strip(),
+        "aiTags": body.aiTags,
+        "locality": body.locality.strip(),
+        "submittedFor": body.submittedFor.strip(),
+        "hasImage": body.hasImage,
+    }
+    return await _run_submission_analysis(body.id.strip(), submission)
 
 
 @app.get("/api/submissions/{submission_id}/image")

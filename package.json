@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "People's Priorities monorepo — backend (:3001) + citizen app (:3000) + MP app (:3002)",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:citizen\" \"npm run dev:mp\"",
+    "predev": "python scripts/stop_dev.py",
+    "dev": "concurrently -k -n backend,citizen,mp -c red,blue,green \"npm run dev:backend\" \"npm run dev:citizen\" \"npm run dev:mp\"",
+    "stop": "python scripts/stop_dev.py",
     "dev:backend": "cd backend && npm run dev",
     "dev:citizen": "cd frontend-citizen && npm run dev",
     "dev:mp": "cd frontend && npm run dev",

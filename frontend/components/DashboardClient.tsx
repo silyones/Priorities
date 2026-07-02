@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
 import { fetchClusters } from "@/lib/clusters";
-import { fetchSubmissionThemes } from "@/lib/submissions";
+import { fetchSubmissionThemes, isLiveSubmissionCluster } from "@/lib/submissions";
 import { StatusDot, UrgencyTag, STATUS_META } from "@/components/ui";
 
 const up = {
@@ -120,38 +120,61 @@ export function DashboardClient() {
             </div>
 
             <div className="divide-y divide-border-subtle">
-              {pending.slice(0, 8).map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
-                  className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60"
-                >
-                  <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
-                  <StatusDot status={c.status} pulse={c.status === "new"} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                      <span className="flex items-center gap-0.5 text-xs text-ink-muted">
-                        <MapPin className="h-3 w-3" /> {c.locality}
-                      </span>
-                      <UrgencyTag urgency={c.urgency} />
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="text-right">
-                      <div className="font-mono text-sm font-bold text-ink">
-                        {c.affected.toLocaleString("en-IN")}
+              {pending.slice(0, 8).map((c, i) => {
+                const rowClass =
+                  "flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60";
+                const rowContent = (
+                  <>
+                    <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
+                    <StatusDot status={c.status} pulse={c.status === "new"} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                        <span className="flex items-center gap-0.5 text-xs text-ink-muted">
+                          <MapPin className="h-3 w-3" /> {c.locality}
+                        </span>
+                        <UrgencyTag urgency={c.urgency} />
                       </div>
-                      <div className="text-[9px] uppercase tracking-widest text-ink-muted">voices</div>
                     </div>
-                    <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
-                      {c.score}
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        <div className="font-mono text-sm font-bold text-ink">
+                          {c.affected.toLocaleString("en-IN")}
+                        </div>
+                        <div className="text-[9px] uppercase tracking-widest text-ink-muted">
+                          {c.affected === 1 ? "voice" : "voices"}
+                        </div>
+                      </div>
+                      <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
+                        {c.score}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </>
+                );
+
+                return isLiveSubmissionCluster(c) ? (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
+                  >
+                    <Link href={`/issues/${c.id}`} className={`${rowClass} cursor-pointer`}>
+                      {rowContent}
+                    </Link>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
+                    className={rowClass}
+                  >
+                    {rowContent}
+                  </motion.div>
+                );
+              })}
             </div>
 
             <div className="border-t border-border-subtle bg-cream/50 px-5 py-3">

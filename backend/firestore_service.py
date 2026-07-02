@@ -25,3 +25,10 @@ def get_submission_image(submission_id: str) -> str | None:
         raise RuntimeError("Unexpected Firestore image response")
     image = data.get("imageBase64")
     return image if isinstance(image, str) and image.strip() else None
+
+
+def get_submission(submission_id: str) -> dict[str, Any]:
+    data = bridge_call({"action": "firestore:get", "id": submission_id})
+    if not isinstance(data, dict):
+        raise RuntimeError("Unexpected Firestore get response")
+    return data

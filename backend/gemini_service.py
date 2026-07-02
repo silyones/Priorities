@@ -177,3 +177,4 @@ def classify_issue(image_base64: str, description: str) -> dict[str, Any]:
         raise RuntimeError("Gemini classification response was not a JSON object")
 
     return _normalize_result(parsed)
+
