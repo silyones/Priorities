@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight, Layers, Megaphone, FlaskConical,
-  MapPin, CheckCircle2, Users, Radio, Map, TrendingUp,
+  MapPin, Users, Radio, Map, TrendingUp,
   AlertCircle,
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
-import { fetchClusters } from "@/lib/clusters";
-import { fetchSubmissionThemes, isLiveSubmissionCluster } from "@/lib/submissions";
+import { fetchSubmissionThemes } from "@/lib/submissions";
 import { StatusDot, UrgencyTag, STATUS_META } from "@/components/ui";
 
 const up = {
@@ -18,44 +17,44 @@ const up = {
   show:   { opacity: 1, y: 0 },
 };
 
-interface Stats {
-  totalVoices: number; themes: number; wards: number;
-  relayShare: number; published: number;
-}
-
 export function DashboardClient() {
-  const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [realThemes, setRealThemes] = useState<Cluster[]>([]);
+  const [themes, setThemes] = useState<Cluster[]>([]);
   const [submissionsError, setSubmissionsError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const dummyThemes = clusters.filter((c) => c.status !== "published");
-  const pending = [...realThemes, ...dummyThemes].sort((a, b) => b.score - a.score);
-  const newThemes     = clusters.filter((c) => c.status === "new");
-  const showcaseItems = clusters.filter((c) => c.status === "published");
+  const pending = useMemo(
+    () => [...themes].sort((a, b) => b.score - a.score),
+    [themes],
+  );
+
+  const stats = useMemo(() => {
+    const totalVoices = themes.reduce((sum, t) => sum + t.affected, 0);
+    const relayVoices = themes.reduce((sum, t) => sum + t.affected * t.relayShare, 0);
+    const localities = new Set(
+      themes.map((t) => t.locality).filter((l) => l && l !== "Location not provided"),
+    );
+    return {
+      totalVoices,
+      themes: themes.length,
+      localities: localities.size,
+      relayShare: totalVoices > 0 ? relayVoices / totalVoices : 0,
+    };
+  }, [themes]);
 
   useEffect(() => {
-    fetchClusters()
-      .then(({ clusters: loaded, stats: loadedStats }) => {
-        setClusters(loaded);
-        setStats(loadedStats);
-      })
-      .catch((err) => {
-        console.error("Could not load clusters:", err);
-      });
-
     fetchSubmissionThemes()
-      .then(({ themes, error }) => {
-        setRealThemes(themes);
+      .then(({ themes: loaded, error }) => {
+        setThemes(loaded);
         setSubmissionsError(error);
       })
       .catch((err) => {
         const message =
           err instanceof Error ? err.message : "Could not load citizen submissions";
         console.error("Could not load citizen submissions:", err);
-        setRealThemes([]);
+        setThemes([]);
         setSubmissionsError(message);
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -84,24 +83,21 @@ export function DashboardClient() {
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-semibold">Live citizen submissions could not be loaded</p>
+              <p className="font-semibold">Citizen submissions could not be loaded</p>
               <p className="mt-0.5 text-xs text-tag-red-text/80">{submissionsError}</p>
-              <p className="mt-1 text-xs text-tag-red-text/70">
-                Demo themes below are still shown, but new Firestore submissions will not appear until this is fixed.
-              </p>
             </div>
           </motion.div>
         )}
 
         <motion.div variants={up} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile icon={<Users className="h-5 w-5" />} label="Voices counted"
-            value={stats?.totalVoices.toLocaleString("en-IN") ?? "—"} accent="accent" />
+            value={loading ? "—" : stats.totalVoices.toLocaleString("en-IN")} accent="accent" />
           <StatTile icon={<TrendingUp className="h-5 w-5" />} label="Demand themes"
-            value={stats?.themes ?? "—"} accent="teal" />
-          <StatTile icon={<Map className="h-5 w-5" />} label="Wards mapped"
-            value={stats?.wards ?? "—"} accent="ink" />
+            value={loading ? "—" : stats.themes} accent="teal" />
+          <StatTile icon={<Map className="h-5 w-5" />} label="Localities"
+            value={loading ? "—" : stats.localities} accent="ink" />
           <StatTile icon={<Radio className="h-5 w-5" />} label="Via relay"
-            value={stats ? `${Math.round(stats.relayShare * 100)}%` : "—"} accent="rust" />
+            value={loading ? "—" : `${Math.round(stats.relayShare * 100)}%`} accent="rust" />
         </motion.div>
 
         <motion.div variants={up} className="grid gap-4 lg:grid-cols-3">
@@ -119,111 +115,72 @@ export function DashboardClient() {
             </div>
 
             <div className="divide-y divide-border-subtle">
-              {pending.slice(0, 8).map((c, i) => {
-                const rowClass =
-                  "flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60";
-                const rowContent = (
-                  <>
-                    <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
-                    <StatusDot status={c.status} pulse={c.status === "new"} />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                        <span className="flex items-center gap-0.5 text-xs text-ink-muted">
-                          <MapPin className="h-3 w-3" /> {c.locality}
-                        </span>
-                        <UrgencyTag urgency={c.urgency} />
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <div className="text-right">
-                        <div className="font-mono text-sm font-bold text-ink">
-                          {c.affected.toLocaleString("en-IN")}
-                        </div>
-                        <div className="text-[9px] uppercase tracking-widest text-ink-muted">
-                          {c.affected === 1 ? "voice" : "voices"}
-                        </div>
-                      </div>
-                      <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
-                        {c.score}
-                      </div>
-                    </div>
-                  </>
-                );
-
-                return isLiveSubmissionCluster(c) ? (
+              {!loading && pending.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-ink-muted">
+                  No citizen submissions yet.
+                </p>
+              ) : (
+                pending.slice(0, 8).map((c, i) => (
                   <motion.div
                     key={c.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
                   >
-                    <Link href={`/issues/${c.id}`} className={`${rowClass} cursor-pointer`}>
-                      {rowContent}
+                    <Link href={`/issues/${c.id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60">
+                      <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
+                      <StatusDot status={c.status} pulse={c.status === "new"} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                          <span className="flex items-center gap-0.5 text-xs text-ink-muted">
+                            <MapPin className="h-3 w-3" /> {c.locality}
+                          </span>
+                          <UrgencyTag urgency={c.urgency} />
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <div className="text-right">
+                          <div className="font-mono text-sm font-bold text-ink">
+                            {c.affected.toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[9px] uppercase tracking-widest text-ink-muted">
+                            {c.affected === 1 ? "voice" : "voices"}
+                          </div>
+                        </div>
+                        <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
+                          {c.score}
+                        </div>
+                      </div>
                     </Link>
                   </motion.div>
-                ) : (
-                  <motion.div
-                    key={c.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
-                    className={rowClass}
-                  >
-                    {rowContent}
-                  </motion.div>
-                );
-              })}
+                ))
+              )}
             </div>
 
-            <div className="border-t border-border-subtle bg-cream/50 px-5 py-3">
-              <Link href="/mp"
-                className="flex items-center gap-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink">
-                Open triage tool to action these themes
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+            {pending.length > 0 && (
+              <div className="border-t border-border-subtle bg-cream/50 px-5 py-3">
+                <Link href="/mp"
+                  className="flex items-center gap-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink">
+                  Open triage tool to action these themes
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-4">
-
             <div className="grid grid-cols-2 gap-3">
               <ActionTile href="/mp" icon={<Layers className="h-6 w-6" />}
-                label="MP Triage" desc={`${newThemes.length} new themes`}
+                label="MP Triage" desc={loading ? "…" : `${pending.length} themes`}
                 className="bg-tag-teal-bg text-tag-teal-text" descClass="text-tag-teal-text/80" />
               <ActionTile href="/showcase" icon={<Megaphone className="h-6 w-6" />}
-                label="Showcase" desc={`${showcaseItems.length} published`}
+                label="Showcase" desc="Published outcomes"
                 className="bg-tag-pink-bg text-tag-pink-text" descClass="text-tag-pink-text/80" />
               <ActionTile href="/insights" icon={<FlaskConical className="h-6 w-6" />}
                 label="Insights" desc="Hotspot map"
                 className="bg-ink text-surface-white" descClass="text-white/60" />
             </div>
-
-            {showcaseItems.length > 0 && (
-              <div className="card flex-1">
-                <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3.5">
-                  <p className="text-sm font-bold text-ink">Recent outcomes</p>
-                  <Link href="/showcase" className="text-xs font-medium text-accent hover:text-accent-hover">
-                    View all →
-                  </Link>
-                </div>
-                <div className="divide-y divide-border-subtle">
-                  {showcaseItems.slice(0, 4).map((c) => (
-                    <div key={c.id} className="flex items-start gap-3 px-4 py-3">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tag-teal-text" />
-                      <div>
-                        <div className="text-sm font-medium leading-snug text-ink">
-                          {c.outcome ?? c.title}
-                        </div>
-                        <div className="mt-0.5 text-xs text-ink-muted">
-                          {c.affected.toLocaleString("en-IN")} residents · {c.locality}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </motion.div>
 
