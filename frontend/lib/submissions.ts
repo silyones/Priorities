@@ -63,7 +63,7 @@ function calculateThemeScore(theme: {
     normal: 30,
   }[theme.urgency];
 
-  const demandBonus = Math.min(30, Math.round(10 * Math.log2(theme.voiceCount + 1)));
+  const demandBonus = Math.min(30, Math.round(3.6 * Math.log2(theme.voiceCount + 1)));
 
   const hoursSinceLast =
     (Date.now() - new Date(theme.lastSubmittedAt).getTime()) / 36e5;
