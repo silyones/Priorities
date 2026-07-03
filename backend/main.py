@@ -12,11 +12,18 @@ from typing import Any, Literal
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 
-from firestore_service import get_submission_image, list_submissions, save_submission
+from firestore_service import (
+    get_submission,
+    get_submission_image,
+    list_submissions,
+    save_submission,
+)
 from gemini_service import classify_issue, default_classification
-from sarvam_service import transcribe_audio
+from groq_service import analyze_issue, default_analysis
+from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
 from ts_bridge import warm_bridge
 
@@ -53,6 +60,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Compress responses over ~1KB — matters most on the weak/metered connections
+# this app is built for (submissions/clusters lists, images excluded since
+# they're already compressed and gzip wouldn't help).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 class SubmissionBody(BaseModel):
@@ -61,8 +72,12 @@ class SubmissionBody(BaseModel):
     role: str = ""
     locality: str = ""
     topic: str = ""
-    description: str
+    # Optional because a voice-only submission (citizen can't type) may
+    # arrive with no typed text at all — the audio gets transcribed
+    # server-side instead, see create_submission below.
+    description: str = ""
     imageBase64: str = ""
+    audioBase64: str = ""
     latitude: float | None = None
     longitude: float | None = None
 
@@ -81,6 +96,18 @@ class ClusterPatchBody(BaseModel):
     publish: dict[str, Any] | None = None
 
 
+class SubmissionAnalysisBody(BaseModel):
+    id: str
+    topic: str = ""
+    description: str
+    issueType: str = ""
+    severity: str = ""
+    aiTags: list[str] = []
+    locality: str = ""
+    submittedFor: str = ""
+    hasImage: bool = False
+
+
 def _runtime_error_status(message: str, firebase: bool = False) -> int:
     if firebase and "Firebase" in message:
         return 503
@@ -95,17 +122,42 @@ def _runtime_error_status(message: str, firebase: bool = False) -> int:
 
 @app.post("/api/submissions")
 async def create_submission(body: SubmissionBody) -> dict[str, Any]:
-    if not body.description.strip():
-        raise HTTPException(status_code=400, detail="Description is required")
     if body.submittedFor not in ("myself", "someone_else"):
         raise HTTPException(status_code=400, detail="Invalid submittedFor value")
+
+    description = body.description.strip()
+
+    # A citizen who can't type may submit voice-only, with no typed
+    # description at all. Transcribe it here, server-side, where a stable
+    # connection is a given — the citizen's own device never has to be
+    # online long enough to transcribe anything itself.
+    if body.audioBase64:
+        try:
+            audio_bytes, mime_type = parse_audio_data_url(body.audioBase64)
+            if audio_bytes:
+                result = await asyncio.to_thread(
+                    transcribe_audio, audio_bytes, mime_type, "recording"
+                )
+                transcript = result["transcript"].strip() if result["transcript"] else ""
+                if transcript:
+                    description = f"{description} {transcript}".strip() if description else transcript
+        except (ValueError, RuntimeError) as exc:
+            # Never lose the submission over a transcription hiccup — flag it
+            # for manual follow-up instead of silently dropping the citizen's
+            # voice.
+            logger.warning("Voice submission transcription failed: %s", exc)
+            if not description:
+                description = "(Voice submission — automatic transcription failed. Please follow up to hear the recording.)"
+
+    if not description:
+        raise HTTPException(status_code=400, detail="Description is required")
 
     try:
         classify_started = time.perf_counter()
         classification = await asyncio.to_thread(
             classify_issue,
             body.imageBase64,
-            body.description,
+            description,
         )
         classify_elapsed = time.perf_counter() - classify_started
     except ValueError as exc:
@@ -125,7 +177,7 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
         "role": body.role.strip(),
         "locality": body.locality.strip(),
         "topic": body.topic.strip(),
-        "description": body.description.strip(),
+        "description": description,
         "imageBase64": body.imageBase64,
         "latitude": body.latitude if isinstance(body.latitude, (int, float)) else None,
         "longitude": body.longitude if isinstance(body.longitude, (int, float)) else None,
@@ -153,6 +205,14 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
     return {"ok": True, "id": result["id"], **classification}
 
 
+@app.get("/api/health")
+async def health() -> dict[str, bool]:
+    """Cheap endpoint the frontend pings to verify real backend reachability
+    — navigator.onLine alone reports true even on a LAN with no real
+    internet access, or when the backend itself is unreachable."""
+    return {"ok": True}
+
+
 @app.get("/api/submissions")
 async def get_submissions() -> list[dict[str, Any]]:
     try:
@@ -163,6 +223,98 @@ async def get_submissions() -> list[dict[str, Any]]:
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
+
+
+@app.get("/api/submissions/{submission_id}")
+async def get_submission_endpoint(submission_id: str) -> dict[str, Any]:
+    try:
+        submission = await asyncio.to_thread(get_submission, submission_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    return submission
+
+
+async def _run_submission_analysis(
+    submission_id: str,
+    submission: dict[str, Any],
+) -> dict[str, Any]:
+    image_base64 = ""
+    if submission.get("hasImage"):
+        try:
+            image_base64 = await asyncio.to_thread(get_submission_image, submission_id) or ""
+        except RuntimeError:
+            image_base64 = ""
+
+    try:
+        analysis_started = time.perf_counter()
+        analysis = await asyncio.to_thread(
+            analyze_issue,
+            image_base64=image_base64,
+            topic=str(submission.get("topic", "")),
+            description=str(submission.get("description", "")),
+            issue_type=str(submission.get("issueType", "")),
+            severity=str(submission.get("severity", "")),
+            ai_tags=submission.get("aiTags") if isinstance(submission.get("aiTags"), list) else [],
+            locality=str(submission.get("locality", "")),
+            submitted_for=str(submission.get("submittedFor", "")),
+        )
+        analysis_elapsed = time.perf_counter() - analysis_started
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logger.warning("Groq analysis failed, using fallback: %s", exc)
+        analysis = default_analysis(
+            description=str(submission.get("description", "")),
+            issue_type=str(submission.get("issueType", "")),
+            severity=str(submission.get("severity", "")),
+            has_image=bool(submission.get("hasImage")),
+        )
+        analysis_elapsed = 0.0
+
+    logger.info(
+        "submission analysis id=%s elapsed=%.2fs",
+        submission_id,
+        analysis_elapsed,
+    )
+
+    return {"ok": True, "submissionId": submission_id, **analysis}
+
+
+@app.get("/api/submissions/{submission_id}/analysis")
+async def get_submission_analysis(submission_id: str) -> dict[str, Any]:
+    try:
+        submission = await asyncio.to_thread(get_submission, submission_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    return await _run_submission_analysis(submission_id, submission)
+
+
+@app.post("/api/submissions/analyze")
+async def analyze_submission(body: SubmissionAnalysisBody) -> dict[str, Any]:
+    if not body.description.strip():
+        raise HTTPException(status_code=400, detail="Description is required")
+
+    submission = {
+        "topic": body.topic.strip(),
+        "description": body.description.strip(),
+        "issueType": body.issueType.strip(),
+        "severity": body.severity.strip(),
+        "aiTags": body.aiTags,
+        "locality": body.locality.strip(),
+        "submittedFor": body.submittedFor.strip(),
+        "hasImage": body.hasImage,
+    }
+    return await _run_submission_analysis(body.id.strip(), submission)
 
 
 @app.get("/api/submissions/{submission_id}/image")

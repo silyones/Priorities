@@ -9,7 +9,30 @@ export interface ApiSubmission {
   severity: string;
   locality: string;
   submittedFor: string;
+  aiTags?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
+  hasImage?: boolean;
   createdAt: string | null;
+}
+
+export interface SubmissionDetail extends ApiSubmission {
+  name: string;
+  role: string;
+  aiTags: string[];
+  latitude: number | null;
+  longitude: number | null;
+  hasImage: boolean;
+}
+
+export interface SubmissionAnalysis {
+  ok: boolean;
+  submissionId: string;
+  summary: string;
+  recommendation: string[];
+  suggestedDepartment: string;
+  urgencyRationale: string;
+  imageCaption: string;
 }
 
 function severityToUrgency(severity: string): Urgency {
@@ -44,7 +67,7 @@ export function submissionToTheme(submission: ApiSubmission): Cluster {
     title,
     category: issueTypeToCategory(submission.issueType ?? ""),
     ward: "",
-    locality: submission.locality?.trim() || "Unknown area",
+    locality: submission.locality?.trim() || "Location not provided",
     affected: 1,
     urgency,
     status: "new",
@@ -99,6 +122,136 @@ export async function fetchSubmissions(): Promise<SubmissionsFetchResult> {
 
 export function isLiveSubmissionCluster(cluster: Cluster): boolean {
   return cluster.isLiveSubmission === true;
+}
+
+function listItemToDetail(item: ApiSubmission): SubmissionDetail {
+  return {
+    ...item,
+    name: "",
+    role: "",
+    aiTags: item.aiTags ?? [],
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    hasImage: item.hasImage ?? false,
+  };
+}
+
+async function fetchSubmissionFromList(
+  id: string,
+): Promise<{ ok: true; submission: SubmissionDetail } | { ok: false; error: string }> {
+  const listResult = await fetchSubmissions();
+  if (!listResult.ok) {
+    return { ok: false, error: listResult.error };
+  }
+
+  const match = listResult.submissions.find((item) => item.id === id);
+  if (!match) {
+    return { ok: false, error: "Issue not found" };
+  }
+
+  return { ok: true, submission: listItemToDetail(match) };
+}
+
+export async function fetchSubmissionDetail(
+  id: string,
+): Promise<{ ok: true; submission: SubmissionDetail } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(`/api/submissions/${encodeURIComponent(id)}`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const submission = (await res.json()) as SubmissionDetail;
+      return { ok: true, submission };
+    }
+    if (res.status === 404) {
+      return fetchSubmissionFromList(id);
+    }
+    return {
+      ok: false,
+      error: `Failed to load issue (${res.status})`,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not load issue";
+    return fetchSubmissionFromList(id).then((fallback) =>
+      fallback.ok ? fallback : { ok: false, error: message },
+    );
+  }
+}
+
+export async function fetchSubmissionAnalysis(
+  submission: SubmissionDetail,
+): Promise<{ ok: true; analysis: SubmissionAnalysis } | { ok: false; error: string }> {
+  const id = submission.id;
+
+  try {
+    const getRes = await fetchWithTimeout(
+      `/api/submissions/${encodeURIComponent(id)}/analysis`,
+      { cache: "no-store" },
+      90_000,
+    );
+    if (getRes.ok) {
+      const analysis = (await getRes.json()) as SubmissionAnalysis;
+      return { ok: true, analysis };
+    }
+  } catch {
+    // Fall through to POST analyze.
+  }
+
+  try {
+    const postRes = await fetchWithTimeout(
+      "/api/submissions/analyze",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: submission.id,
+          topic: submission.topic,
+          description: submission.description,
+          issueType: submission.issueType,
+          severity: submission.severity,
+          aiTags: submission.aiTags,
+          locality: submission.locality,
+          submittedFor: submission.submittedFor,
+          hasImage: submission.hasImage,
+        }),
+        cache: "no-store",
+      },
+      90_000,
+    );
+    if (!postRes.ok) {
+      return {
+        ok: false,
+        error: postRes.status === 404 ? "Analysis unavailable — run npm run stop, then npm run dev" : `Analysis failed (${postRes.status})`,
+      };
+    }
+    const analysis = (await postRes.json()) as SubmissionAnalysis;
+    return { ok: true, analysis };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not generate analysis";
+    return { ok: false, error: message };
+  }
+}
+
+export async function fetchSubmissionImage(
+  id: string,
+): Promise<{ ok: true; imageBase64: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetchWithTimeout(
+      `/api/submissions/${encodeURIComponent(id)}/image`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) {
+      return { ok: false, error: "No photo attached" };
+    }
+    const data = (await res.json()) as { imageBase64?: string | null };
+    if (!data.imageBase64) {
+      return { ok: false, error: "No photo attached" };
+    }
+    return { ok: true, imageBase64: data.imageBase64 };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not load photo";
+    return { ok: false, error: message };
+  }
 }
 
 export async function fetchSubmissionThemes(): Promise<{

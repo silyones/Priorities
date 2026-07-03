@@ -8,9 +8,11 @@ import {
   Check,
   Loader2,
   MapPin,
+  Mic,
   ShieldCheck,
   User,
   Users,
+  WifiOff,
   X,
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
@@ -22,6 +24,8 @@ import {
   loadDraft,
   saveDraft,
   submitOffline,
+  subscribeConnectivity,
+  subscribePendingSubmissionCount,
 } from "@/lib/offlineQueue";
 
 type UILanguage = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali";
@@ -42,7 +46,9 @@ const COPY: Record<
     privacyLine: string;
     voiceListening: string;
     voiceMicDenied: string;
+    voiceAttached: string;
     voiceNotSupported: string;
+    voiceRecorded: string;
     voiceSpeak: string;
     voiceTranscribing: string;
     relayLocalityLabel: string;
@@ -52,9 +58,13 @@ const COPY: Record<
     relayRolePlaceholder: string;
     relayWhoLabel: string;
     relayWhoPlaceholder: string;
+    offlineNotice: string;
+    pendingCountSingular: string;
+    pendingCountPlural: string;
     remove: string;
     submitAnother: string;
     submitButton: string;
+    submitButtonOffline: string;
     submitButtonSending: string;
     tabForMyself: string;
     tabForSomeoneElse: string;
@@ -92,13 +102,19 @@ const COPY: Record<
     manualAreaLabel: "Or type your area",
     manualAreaPlaceholder: "e.g. Ward 7 main road, Rajgarh",
     submitButtonSending: "Sending your voice…",
+    submitButtonOffline: "Save my voice for later",
+    offlineNotice: "You're offline. Your voice will be saved and sent automatically once you're back online.",
+    pendingCountSingular: "1 voice waiting to send",
+    pendingCountPlural: "{count} voices waiting to send",
     submitButton: "Submit my voice",
     privacyLine: "No tracking number, no status, no timeline. Just an honest acknowledgment.",
     voiceSpeak: "Speak",
     voiceListening: "Listening… tap to stop",
-    voiceTranscribing: "Transcribing…",
     voiceNotSupported: "Voice not supported here — type instead",
     voiceMicDenied: "Microphone access denied. Type your issue instead.",
+    voiceRecorded: "Voice recorded — it will be transcribed automatically",
+    voiceTranscribing: "Transcribing…",
+    voiceAttached: "Voice recording attached",
     ackTitle: "Your voice has been heard.",
     ackBody: "It's been recorded and is now part of a real pattern of demand in your constituency.",
     ackNote:
@@ -131,13 +147,19 @@ const COPY: Record<
     manualAreaLabel: "या अपना क्षेत्र टाइप करें",
     manualAreaPlaceholder: "जैसे वार्ड 7 मुख्य सड़क, राजगढ़",
     submitButtonSending: "आपकी आवाज भेजी जा रही है…",
+    submitButtonOffline: "मेरी आवाज बाद के लिए सहेजें",
+    offlineNotice: "आप ऑफ़लाइन हैं। ऑनलाइन होते ही आपकी आवाज़ सहेजी और अपने आप भेजी जाएगी।",
+    pendingCountSingular: "1 आवाज़ भेजे जाने की प्रतीक्षा में",
+    pendingCountPlural: "{count} आवाज़ें भेजे जाने की प्रतीक्षा में",
     submitButton: "मेरी आवाज सबमिट करें",
     privacyLine: "कोई ट्रैकिंग नंबर नहीं, कोई स्थिति नहीं, कोई समयसीमा नहीं। बस एक ईमानदार स्वीकृति।",
     voiceSpeak: "बोलें",
     voiceListening: "सुन रहे हैं… रोकने के लिए टैप करें",
-    voiceTranscribing: "लिखा जा रहा है…",
     voiceNotSupported: "यहां वॉइस समर्थित नहीं है — इसके बजाय टाइप करें",
     voiceMicDenied: "माइक्रोफोन की अनुमति नहीं मिली। इसके बजाय अपनी समस्या टाइप करें।",
+    voiceRecorded: "आवाज रिकॉर्ड हो गई — यह अपने आप लिखी जाएगी",
+    voiceTranscribing: "लिखा जा रहा है…",
+    voiceAttached: "आवाज रिकॉर्डिंग जोड़ी गई",
     ackTitle: "आपकी आवाज सुन ली गई है।",
     ackBody:
       "इसे दर्ज किया गया है और अब यह आपके निर्वाचन क्षेत्र में मांग के एक वास्तविक पैटर्न का हिस्सा है।",
@@ -171,13 +193,19 @@ const COPY: Record<
     manualAreaLabel: "ಅಥವಾ ನಿಮ್ಮ ಪ್ರದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ",
     manualAreaPlaceholder: "ಉದಾ. ವಾರ್ಡ್ 7 ಮುಖ್ಯ ರಸ್ತೆ, ರಾಜಗಢ",
     submitButtonSending: "ನಿಮ್ಮ ಧ್ವನಿಯನ್ನು ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ…",
+    submitButtonOffline: "ನನ್ನ ಧ್ವನಿಯನ್ನು ನಂತರಕ್ಕಾಗಿ ಉಳಿಸಿ",
+    offlineNotice: "ನೀವು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದೀರಿ. ಆನ್‌ಲೈನ್‌ಗೆ ಬಂದ ತಕ್ಷಣ ನಿಮ್ಮ ಧ್ವನಿ ಉಳಿಸಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಳುಹಿಸಲಾಗುತ್ತದೆ.",
+    pendingCountSingular: "1 ಧ್ವನಿ ಕಳುಹಿಸಲು ಬಾಕಿಯಿದೆ",
+    pendingCountPlural: "{count} ಧ್ವನಿಗಳು ಕಳುಹಿಸಲು ಬಾಕಿಯಿವೆ",
     submitButton: "ನನ್ನ ಧ್ವನಿಯನ್ನು ಸಲ್ಲಿಸಿ",
     privacyLine: "ಟ್ರ್ಯಾಕಿಂಗ್ ಸಂಖ್ಯೆ ಇಲ್ಲ, ಸ್ಥಿತಿ ಇಲ್ಲ, ಸಮಯಸೂಚಿ ಇಲ್ಲ. ಕೇವಲ ಪ್ರಾಮಾಣಿಕ ಸ್ವೀಕೃತಿ.",
     voiceSpeak: "ಮಾತನಾಡಿ",
     voiceListening: "ಆಲಿಸಲಾಗುತ್ತಿದೆ… ನಿಲ್ಲಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ",
-    voiceTranscribing: "ಬರೆಯಲಾಗುತ್ತಿದೆ…",
     voiceNotSupported: "ಇಲ್ಲಿ ಧ್ವನಿ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ — ಬದಲಿಗೆ ಟೈಪ್ ಮಾಡಿ",
     voiceMicDenied: "ಮೈಕ್ರೊಫೋನ್ ಪ್ರವೇಶ ನಿರಾಕರಿಸಲಾಗಿದೆ. ಬದಲಿಗೆ ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ.",
+    voiceRecorded: "ಧ್ವನಿ ರೆಕಾರ್ಡ್ ಆಗಿದೆ — ಇದು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಬರೆಯಲ್ಪಡುತ್ತದೆ",
+    voiceTranscribing: "ಬರೆಯಲಾಗುತ್ತಿದೆ…",
+    voiceAttached: "ಧ್ವನಿ ರೆಕಾರ್ಡಿಂಗ್ ಲಗತ್ತಿಸಲಾಗಿದೆ",
     ackTitle: "ನಿಮ್ಮ ಧ್ವನಿಯನ್ನು ಕೇಳಲಾಗಿದೆ.",
     ackBody:
       "ಇದನ್ನು ದಾಖಲಿಸಲಾಗಿದೆ ಮತ್ತು ಈಗ ಅದು ನಿಮ್ಮ ಕ್ಷೇತ್ರದಲ್ಲಿ ಬೇಡಿಕೆಯ ನೈಜ ಮಾದರಿಯ ಭಾಗವಾಗಿದೆ.",
@@ -211,13 +239,19 @@ const COPY: Record<
     manualAreaLabel: "அல்லது உங்கள் பகுதியை தட்டச்சு செய்யுங்கள்",
     manualAreaPlaceholder: "எ.கா. வார்டு 7 முதன்மை சாலை, ராஜ்கர்",
     submitButtonSending: "உங்கள் குரல் அனுப்பப்படுகிறது…",
+    submitButtonOffline: "எனது குரலை பின்னர் சேமிக்கவும்",
+    offlineNotice: "நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். ஆன்லைனுக்கு வந்தவுடன் உங்கள் குரல் சேமிக்கப்பட்டு தானாக அனுப்பப்படும்.",
+    pendingCountSingular: "1 குரல் அனுப்பப்பட காத்திருக்கிறது",
+    pendingCountPlural: "{count} குரல்கள் அனுப்பப்பட காத்திருக்கின்றன",
     submitButton: "எனது குரலைச் சமர்ப்பிக்கவும்",
     privacyLine: "கண்காணிப்பு எண் இல்லை, நிலை இல்லை, காலவரிசை இல்லை. நேர்மையான ஒப்புகை மட்டுமே.",
     voiceSpeak: "பேசுங்கள்",
     voiceListening: "கேட்கிறது… நிறுத்த தட்டவும்",
-    voiceTranscribing: "எழுதப்படுகிறது…",
     voiceNotSupported: "இங்கே குரல் ஆதரிக்கப்படவில்லை — பதிலாக தட்டச்சு செய்யுங்கள்",
     voiceMicDenied: "மைக்ரோஃபோன் அணுகல் மறுக்கப்பட்டது. பதிலாக உங்கள் பிரச்சினையை தட்டச்சு செய்யுங்கள்.",
+    voiceRecorded: "குரல் பதிவு செய்யப்பட்டது — இது தானாக எழுதப்படும்",
+    voiceTranscribing: "எழுதப்படுகிறது…",
+    voiceAttached: "குரல் பதிவு இணைக்கப்பட்டது",
     ackTitle: "உங்கள் குரல் கேட்கப்பட்டுள்ளது.",
     ackBody:
       "இது பதிவு செய்யப்பட்டுள்ளது, இப்போது உங்கள் தொகுதியில் தேவையின் உண்மையான வடிவத்தின் ஒரு பகுதியாக உள்ளது.",
@@ -251,13 +285,19 @@ const COPY: Record<
     manualAreaLabel: "లేదా మీ ప్రాంతాన్ని టైప్ చేయండి",
     manualAreaPlaceholder: "ఉదా. వార్డు 7 ప్రధాన రహదారి, రాజ్‌గఢ్",
     submitButtonSending: "మీ గొంతు పంపబడుతోంది…",
+    submitButtonOffline: "నా గొంతును తర్వాత కోసం సేవ్ చేయండి",
+    offlineNotice: "మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. ఆన్‌లైన్‌లోకి వచ్చిన వెంటనే మీ గొంతు సేవ్ చేయబడి స్వయంచాలకంగా పంపబడుతుంది.",
+    pendingCountSingular: "1 గొంతు పంపడానికి వేచి ఉంది",
+    pendingCountPlural: "{count} గొంతులు పంపడానికి వేచి ఉన్నాయి",
     submitButton: "నా గొంతును సమర్పించండి",
     privacyLine: "ట్రాకింగ్ నంబర్ లేదు, స్థితి లేదు, కాలక్రమం లేదు. కేవలం నిజాయితీగల అంగీకారం.",
     voiceSpeak: "మాట్లాడండి",
     voiceListening: "వింటున్నాం… ఆపడానికి నొక్కండి",
-    voiceTranscribing: "వ్రాయబడుతోంది…",
     voiceNotSupported: "ఇక్కడ వాయిస్ మద్దతు లేదు — బదులుగా టైప్ చేయండి",
     voiceMicDenied: "మైక్రోఫోన్ యాక్సెస్ నిరాకరించబడింది. బదులుగా మీ సమస్యను టైప్ చేయండి.",
+    voiceRecorded: "వాయిస్ రికార్డ్ చేయబడింది — ఇది స్వయంచాలకంగా రాయబడుతుంది",
+    voiceTranscribing: "వ్రాయబడుతోంది…",
+    voiceAttached: "వాయిస్ రికార్డింగ్ జోడించబడింది",
     ackTitle: "మీ గొంతు వినబడింది.",
     ackBody:
       "ఇది నమోదు చేయబడింది మరియు ఇప్పుడు మీ నియోజకవర్గంలో డిమాండ్ యొక్క నిజమైన నమూనాలో భాగం.",
@@ -291,13 +331,19 @@ const COPY: Record<
     manualAreaLabel: "অথবা আপনার এলাকা টাইপ করুন",
     manualAreaPlaceholder: "যেমন ওয়ার্ড ৭ প্রধান সড়ক, রাজগড়",
     submitButtonSending: "আপনার কণ্ঠস্বর পাঠানো হচ্ছে…",
+    submitButtonOffline: "আমার কণ্ঠস্বর পরে জন্য সংরক্ষণ করুন",
+    offlineNotice: "আপনি অফলাইনে আছেন। অনলাইনে এলেই আপনার কণ্ঠস্বর সংরক্ষিত হবে এবং স্বয়ংক্রিয়ভাবে পাঠানো হবে।",
+    pendingCountSingular: "১টি কণ্ঠস্বর পাঠানোর অপেক্ষায়",
+    pendingCountPlural: "{count}টি কণ্ঠস্বর পাঠানোর অপেক্ষায়",
     submitButton: "আমার কণ্ঠস্বর জমা দিন",
     privacyLine: "কোনো ট্র্যাকিং নম্বর নেই, কোনো স্ট্যাটাস নেই, কোনো সময়সীমা নেই। শুধুমাত্র একটি সৎ স্বীকৃতি।",
     voiceSpeak: "বলুন",
     voiceListening: "শোনা হচ্ছে… থামাতে ট্যাপ করুন",
-    voiceTranscribing: "লেখা হচ্ছে…",
     voiceNotSupported: "এখানে ভয়েস সমর্থিত নয় — পরিবর্তে টাইপ করুন",
     voiceMicDenied: "মাইক্রোফোন অ্যাক্সেস প্রত্যাখ্যান করা হয়েছে। পরিবর্তে আপনার সমস্যা টাইপ করুন।",
+    voiceRecorded: "ভয়েস রেকর্ড হয়েছে — এটি স্বয়ংক্রিয়ভাবে লেখা হবে",
+    voiceTranscribing: "লেখা হচ্ছে…",
+    voiceAttached: "ভয়েস রেকর্ডিং সংযুক্ত হয়েছে",
     ackTitle: "আপনার কণ্ঠস্বর শোনা হয়েছে।",
     ackBody:
       "এটি রেকর্ড করা হয়েছে এবং এখন আপনার নির্বাচনী এলাকায় চাহিদার একটি বাস্তব প্যাটার্নের অংশ।",
@@ -336,6 +382,7 @@ export default function SubmitPage() {
   const [locality, setLocality] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+  const [audioBase64, setAudioBase64] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [manualArea, setManualArea] = useState("");
   const [showManualArea, setShowManualArea] = useState(false);
@@ -343,14 +390,24 @@ export default function SubmitPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [ack, setAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const draftIdRef = useRef("");
+  const [draftId] = useState(() => getOrCreateDraftId());
   const draftLoadedRef = useRef(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = subscribeConnectivity(setIsOnline);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribePendingSubmissionCount(setPendingCount);
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     initOfflineQueue();
 
-    const draftId = getOrCreateDraftId();
-    draftIdRef.current = draftId;
     loadDraft(draftId)
       .then((draft) => {
         if (!draft) return;
@@ -361,6 +418,7 @@ export default function SubmitPage() {
         setRole(draft.role);
         setLocality(draft.locality);
         setManualArea(draft.manualArea);
+        setAudioBase64(draft.audioBase64 ?? "");
       })
       .finally(() => {
         draftLoadedRef.current = true;
@@ -373,7 +431,7 @@ export default function SubmitPage() {
   useEffect(() => {
     if (!draftLoadedRef.current || status === "done") return;
     const timer = setTimeout(() => {
-      void saveDraft(draftIdRef.current, {
+      void saveDraft(draftId, {
         mode,
         issueTitle,
         assistedPerson,
@@ -381,12 +439,15 @@ export default function SubmitPage() {
         role,
         locality,
         manualArea,
+        audioBase64,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, status]);
+  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, audioBase64, status]);
 
-  const canSubmit = text.trim().length > 8 && status !== "sending";
+  // A citizen who can't type may submit with only a voice recording attached
+  // (transcribed server-side) — text length alone shouldn't gate submission.
+  const canSubmit = (text.trim().length > 8 || !!audioBase64) && status !== "sending";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -408,10 +469,11 @@ export default function SubmitPage() {
           topic: issueTitle.trim(),
           description: text.trim(),
           imageBase64,
+          audioBase64,
           latitude: coords?.lat ?? null,
           longitude: coords?.lng ?? null,
         },
-        draftIdRef.current,
+        draftId,
       );
 
       setAck(true);
@@ -430,6 +492,7 @@ export default function SubmitPage() {
     setLocality("");
     setPhotoFile(null);
     setPhotoPreviewUrl("");
+    setAudioBase64("");
     setCoords(null);
     setManualArea("");
     setShowManualArea(false);
@@ -473,8 +536,16 @@ export default function SubmitPage() {
         {status !== "done" ? (
           <>
             <div className="border-b border-border-subtle px-5 py-5 sm:px-8">
-              <div className="mx-auto max-w-7xl">
+              <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
                 <h1 className="text-xl font-semibold text-ink">{copy.pageTitle}</h1>
+                {pendingCount > 0 && (
+                  <span className="pill shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                    {pendingCount === 1
+                      ? copy.pendingCountSingular
+                      : copy.pendingCountPlural.replace("{count}", String(pendingCount))}
+                  </span>
+                )}
               </div>
             </div>
             <div className="container-pp py-8">
@@ -554,12 +625,14 @@ export default function SubmitPage() {
                         onTranscript={(spoken) =>
                           setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken))
                         }
+                        onAudioCaptured={(audio) => setAudioBase64(audio)}
                         labels={{
                           speak: copy.voiceSpeak,
                           listening: copy.voiceListening,
-                          transcribing: copy.voiceTranscribing,
                           notSupported: copy.voiceNotSupported,
                           micDenied: copy.voiceMicDenied,
+                          recorded: copy.voiceRecorded,
+                          transcribing: copy.voiceTranscribing,
                         }}
                       />
                     </div>
@@ -619,6 +692,21 @@ export default function SubmitPage() {
                       </div>
                     )}
 
+                    {audioBase64 && (
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink">
+                        <Mic className="h-3.5 w-3.5 text-accent" />
+                        {copy.voiceAttached}
+                        <button
+                          type="button"
+                          onClick={() => setAudioBase64("")}
+                          className="text-ink-muted hover:text-ink"
+                          aria-label="Remove voice recording"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+
                     {coords && (
                       <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink">
                         <MapPin className="h-3.5 w-3.5 text-accent" />
@@ -649,6 +737,13 @@ export default function SubmitPage() {
                     )}
                   </div>
 
+                  {!isOnline && (
+                    <p className="mt-5 flex items-center justify-center gap-1.5 rounded-xl bg-warning-bg px-3 py-2 text-center text-xs font-medium text-ink">
+                      <WifiOff className="h-3.5 w-3.5 shrink-0" />
+                      {copy.offlineNotice}
+                    </p>
+                  )}
+
                   <button type="submit" disabled={!canSubmit} className="btn-primary mt-7 w-full disabled:opacity-40">
                     {status === "sending" ? (
                       <>
@@ -656,7 +751,8 @@ export default function SubmitPage() {
                       </>
                     ) : (
                       <>
-                        {copy.submitButton} <ArrowRight className="h-4 w-4" />
+                        {isOnline ? copy.submitButton : copy.submitButtonOffline}{" "}
+                        <ArrowRight className="h-4 w-4" />
                       </>
                     )}
                   </button>

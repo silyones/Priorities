@@ -2,11 +2,34 @@
 
 from __future__ import annotations
 
+import base64
 import os
+import re
 
 import httpx
 
 SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text"
+
+
+def parse_audio_data_url(audio_base64: str) -> tuple[bytes | None, str]:
+    """Decodes a `data:audio/<type>;base64,...` payload, same convention as
+    the image upload path in gemini_service.py's _parse_data_url."""
+    if not audio_base64 or not audio_base64.strip():
+        return None, "audio/webm"
+
+    raw = audio_base64.strip()
+    match = re.match(r"^data:(audio/[\w.+-]+);base64,(.+)$", raw, re.DOTALL | re.IGNORECASE)
+    if match:
+        mime_type = match.group(1)
+        payload = match.group(2)
+    else:
+        mime_type = "audio/webm"
+        payload = raw
+
+    try:
+        return base64.b64decode(payload, validate=True), mime_type
+    except Exception as exc:
+        raise ValueError("Invalid audioBase64 payload") from exc
 
 
 def transcribe_audio(content: bytes, mime_type: str, filename: str) -> dict[str, str | None]:

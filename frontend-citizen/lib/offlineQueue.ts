@@ -2,7 +2,7 @@ import { API_BASE } from "./api";
 import type { SubmissionPayload } from "./submissions";
 
 const DB_NAME = "pp_offline_db";
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 const STORE_SUBMISSIONS = "submissions";
 const STORE_CONFIG = "config";
 const STORE_DRAFTS = "drafts";
@@ -10,8 +10,20 @@ const STORE_DRAFTS = "drafts";
 const BASE_RETRY_DELAY_MS = 5_000;
 const MAX_RETRY_DELAY_MS = 5 * 60_000;
 const CLIENT_POLL_INTERVAL_MS = 15_000;
+const CONNECTIVITY_CHECK_INTERVAL_MS = 20_000;
+const CONNECTIVITY_CHECK_TIMEOUT_MS = 4_000;
 const SYNC_TAG = "submission-sync";
 const DRAFT_ID_KEY = "citizen-draft-id";
+
+// Fired whenever a submission is enqueued or successfully synced, so the UI
+// can update a pending-count indicator immediately instead of waiting for
+// the next poll tick.
+const QUEUE_CHANGED_EVENT = "pp-queue-changed";
+
+function notifyQueueChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+}
 
 export type DraftFields = {
   mode: "self" | "relay";
@@ -21,6 +33,9 @@ export type DraftFields = {
   role: string;
   locality: string;
   manualArea: string;
+  // A citizen who can't type may have only this — must survive a crash or
+  // closed tab the same as typed text does.
+  audioBase64: string;
 };
 
 type DraftRecord = { id: string; fields: DraftFields; updatedAt: number };
@@ -114,11 +129,24 @@ async function claimQueuedItem(id: string): Promise<QueuedSubmission | null> {
   });
 }
 
+// Every SubmissionPayload field has a matching default on the backend
+// (empty string or null), so omitting empty/default values entirely — rather
+// than sending them as explicit blanks — is safe and keeps the request body
+// small, which matters most on the weak connections this app targets.
+function minimizePayload(payload: SubmissionPayload): Partial<SubmissionPayload> {
+  const trimmed: Partial<SubmissionPayload> = {};
+  for (const [key, value] of Object.entries(payload) as [keyof SubmissionPayload, unknown][]) {
+    if (value === "" || value === null) continue;
+    (trimmed as Record<string, unknown>)[key] = value;
+  }
+  return trimmed;
+}
+
 async function postSubmission(payload: SubmissionPayload): Promise<void> {
   const res = await fetch(`${API_BASE}/api/submissions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(minimizePayload(payload)),
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
@@ -138,6 +166,7 @@ async function sendClaimedItem(item: QueuedSubmission): Promise<boolean> {
     // enqueue time — so a citizen's typed text survives even if the queued
     // send itself never makes it through.
     if (item.draftId) await clearDraft(item.draftId);
+    notifyQueueChanged();
     return true;
   } catch {
     item.status = "pending";
@@ -177,6 +206,37 @@ export async function loadDraft(id: string): Promise<DraftFields | undefined> {
 export async function clearDraft(id: string): Promise<void> {
   if (!id) return;
   await withStore(STORE_DRAFTS, "readwrite", (store) => store.delete(id));
+}
+
+// Lets a relay worker (who may submit many citizens' voices in one offline
+// session before finding signal again) see how many are still waiting to
+// sync, rather than just trusting each individual submission silently.
+export async function getPendingSubmissionCount(): Promise<number> {
+  const items = await getAllQueued();
+  return items.length;
+}
+
+export function subscribePendingSubmissionCount(callback: (count: number) => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  let cancelled = false;
+  const check = () => {
+    void getPendingSubmissionCount().then((count) => {
+      if (!cancelled) callback(count);
+    });
+  };
+
+  check();
+  const timer = setInterval(check, CLIENT_POLL_INTERVAL_MS);
+  window.addEventListener("online", check);
+  window.addEventListener(QUEUE_CHANGED_EVENT, check);
+
+  return () => {
+    cancelled = true;
+    clearInterval(timer);
+    window.removeEventListener("online", check);
+    window.removeEventListener(QUEUE_CHANGED_EVENT, check);
+  };
 }
 
 export async function trySyncQueue(): Promise<void> {
@@ -254,6 +314,7 @@ export async function submitOffline(payload: SubmissionPayload, draftId = ""): P
     nextRetryAt: Date.now(),
   };
   await withStore(STORE_SUBMISSIONS, "readwrite", (store) => store.put(record));
+  notifyQueueChanged();
 
   void claimQueuedItem(record.id).then((claimed) => {
     if (!claimed) return; // a registered background sync grabbed it first
@@ -261,4 +322,50 @@ export async function submitOffline(payload: SubmissionPayload, draftId = ""): P
       if (!sent) void requestBackgroundRetry();
     });
   });
+}
+
+// navigator.onLine only reflects whether the device has *a* network
+// interface up — it reports true on a LAN with no real internet, or when
+// the backend itself is down. A quick real request is the only way to know
+// the backend is actually reachable.
+export async function checkConnectivity(): Promise<boolean> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(CONNECTIVITY_CHECK_TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Reports connection status changes so the UI can show "will send once
+// you're back online" messaging instead of ever disabling the submit
+// button. Combines the instant online/offline browser events with a
+// periodic real check, since the events alone are unreliable (see above).
+export function subscribeConnectivity(callback: (online: boolean) => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  let cancelled = false;
+  const runCheck = () => {
+    void checkConnectivity().then((online) => {
+      if (!cancelled) callback(online);
+    });
+  };
+  const handleOffline = () => callback(false);
+
+  runCheck();
+  const timer = setInterval(runCheck, CONNECTIVITY_CHECK_INTERVAL_MS);
+  window.addEventListener("online", runCheck);
+  window.addEventListener("offline", handleOffline);
+
+  return () => {
+    cancelled = true;
+    clearInterval(timer);
+    window.removeEventListener("online", runCheck);
+    window.removeEventListener("offline", handleOffline);
+  };
 }

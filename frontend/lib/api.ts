@@ -1,8 +1,19 @@
 // All frontend API calls go through here — never import backend lib/ directly (spec §2.5)
-// Set NEXT_PUBLIC_API_URL in .env.local to point at the backend server.
+// Browser requests use same-origin /api/* (proxied by next.config.mjs → 127.0.0.1:3001).
+// SSR uses loopback directly to avoid stale 0.0.0.0 ghost listeners on Windows.
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+function resolveApiBase(): string {
+  if (typeof window !== "undefined") {
+    return "";
+  }
+  return (
+    process.env.BACKEND_INTERNAL_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://127.0.0.1:3001"
+  );
+}
+
+export const API_BASE = resolveApiBase();
 
 export const FETCH_TIMEOUT_MS = 30_000;
 export const SUBMISSION_POST_TIMEOUT_MS = 120_000;
