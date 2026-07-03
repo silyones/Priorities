@@ -10,6 +10,11 @@ export type SubmissionPayload = {
   topic: string;
   description: string;
   imageBase64: string;
+  // Present when on-device speech recognition wasn't available/working —
+  // the backend transcribes it server-side and merges the result into the
+  // saved description, so the citizen's own connectivity never has to hold
+  // transcription up.
+  audioBase64: string;
   latitude: number | null;
   longitude: number | null;
 };

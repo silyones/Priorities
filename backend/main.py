@@ -22,7 +22,7 @@ from firestore_service import (
 )
 from gemini_service import classify_issue, default_classification
 from groq_service import analyze_issue, default_analysis
-from sarvam_service import transcribe_audio
+from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
 from ts_bridge import warm_bridge
 
@@ -67,8 +67,12 @@ class SubmissionBody(BaseModel):
     role: str = ""
     locality: str = ""
     topic: str = ""
-    description: str
+    # Optional because a voice-only submission (citizen can't type) may
+    # arrive with no typed text at all — the audio gets transcribed
+    # server-side instead, see create_submission below.
+    description: str = ""
     imageBase64: str = ""
+    audioBase64: str = ""
     latitude: float | None = None
     longitude: float | None = None
 
@@ -113,17 +117,42 @@ def _runtime_error_status(message: str, firebase: bool = False) -> int:
 
 @app.post("/api/submissions")
 async def create_submission(body: SubmissionBody) -> dict[str, Any]:
-    if not body.description.strip():
-        raise HTTPException(status_code=400, detail="Description is required")
     if body.submittedFor not in ("myself", "someone_else"):
         raise HTTPException(status_code=400, detail="Invalid submittedFor value")
+
+    description = body.description.strip()
+
+    # A citizen who can't type may submit voice-only, with no typed
+    # description at all. Transcribe it here, server-side, where a stable
+    # connection is a given — the citizen's own device never has to be
+    # online long enough to transcribe anything itself.
+    if body.audioBase64:
+        try:
+            audio_bytes, mime_type = parse_audio_data_url(body.audioBase64)
+            if audio_bytes:
+                result = await asyncio.to_thread(
+                    transcribe_audio, audio_bytes, mime_type, "recording"
+                )
+                transcript = result["transcript"].strip() if result["transcript"] else ""
+                if transcript:
+                    description = f"{description} {transcript}".strip() if description else transcript
+        except (ValueError, RuntimeError) as exc:
+            # Never lose the submission over a transcription hiccup — flag it
+            # for manual follow-up instead of silently dropping the citizen's
+            # voice.
+            logger.warning("Voice submission transcription failed: %s", exc)
+            if not description:
+                description = "(Voice submission — automatic transcription failed. Please follow up to hear the recording.)"
+
+    if not description:
+        raise HTTPException(status_code=400, detail="Description is required")
 
     try:
         classify_started = time.perf_counter()
         classification = await asyncio.to_thread(
             classify_issue,
             body.imageBase64,
-            body.description,
+            description,
         )
         classify_elapsed = time.perf_counter() - classify_started
     except ValueError as exc:
@@ -143,7 +172,7 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
         "role": body.role.strip(),
         "locality": body.locality.strip(),
         "topic": body.topic.strip(),
-        "description": body.description.strip(),
+        "description": description,
         "imageBase64": body.imageBase64,
         "latitude": body.latitude if isinstance(body.latitude, (int, float)) else None,
         "longitude": body.longitude if isinstance(body.longitude, (int, float)) else None,

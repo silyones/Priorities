@@ -10,7 +10,7 @@ const SHELL_CACHE = "pp-shell-v1";
 const SHELL_URLS = ["/submit"];
 
 const DB_NAME = "pp_offline_db";
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 const STORE_SUBMISSIONS = "submissions";
 const STORE_CONFIG = "config";
 const STORE_DRAFTS = "drafts";

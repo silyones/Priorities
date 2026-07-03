@@ -8,6 +8,7 @@ import {
   Check,
   Loader2,
   MapPin,
+  Mic,
   ShieldCheck,
   User,
   Users,
@@ -42,7 +43,9 @@ const COPY: Record<
     privacyLine: string;
     voiceListening: string;
     voiceMicDenied: string;
+    voiceAttached: string;
     voiceNotSupported: string;
+    voiceRecorded: string;
     voiceSpeak: string;
     voiceTranscribing: string;
     relayLocalityLabel: string;
@@ -96,9 +99,11 @@ const COPY: Record<
     privacyLine: "No tracking number, no status, no timeline. Just an honest acknowledgment.",
     voiceSpeak: "Speak",
     voiceListening: "Listening… tap to stop",
-    voiceTranscribing: "Transcribing…",
     voiceNotSupported: "Voice not supported here — type instead",
     voiceMicDenied: "Microphone access denied. Type your issue instead.",
+    voiceRecorded: "Voice recorded — it will be transcribed automatically",
+    voiceTranscribing: "Transcribing…",
+    voiceAttached: "Voice recording attached",
     ackTitle: "Your voice has been heard.",
     ackBody: "It's been recorded and is now part of a real pattern of demand in your constituency.",
     ackNote:
@@ -135,9 +140,11 @@ const COPY: Record<
     privacyLine: "कोई ट्रैकिंग नंबर नहीं, कोई स्थिति नहीं, कोई समयसीमा नहीं। बस एक ईमानदार स्वीकृति।",
     voiceSpeak: "बोलें",
     voiceListening: "सुन रहे हैं… रोकने के लिए टैप करें",
-    voiceTranscribing: "लिखा जा रहा है…",
     voiceNotSupported: "यहां वॉइस समर्थित नहीं है — इसके बजाय टाइप करें",
     voiceMicDenied: "माइक्रोफोन की अनुमति नहीं मिली। इसके बजाय अपनी समस्या टाइप करें।",
+    voiceRecorded: "आवाज रिकॉर्ड हो गई — यह अपने आप लिखी जाएगी",
+    voiceTranscribing: "लिखा जा रहा है…",
+    voiceAttached: "आवाज रिकॉर्डिंग जोड़ी गई",
     ackTitle: "आपकी आवाज सुन ली गई है।",
     ackBody:
       "इसे दर्ज किया गया है और अब यह आपके निर्वाचन क्षेत्र में मांग के एक वास्तविक पैटर्न का हिस्सा है।",
@@ -175,9 +182,11 @@ const COPY: Record<
     privacyLine: "ಟ್ರ್ಯಾಕಿಂಗ್ ಸಂಖ್ಯೆ ಇಲ್ಲ, ಸ್ಥಿತಿ ಇಲ್ಲ, ಸಮಯಸೂಚಿ ಇಲ್ಲ. ಕೇವಲ ಪ್ರಾಮಾಣಿಕ ಸ್ವೀಕೃತಿ.",
     voiceSpeak: "ಮಾತನಾಡಿ",
     voiceListening: "ಆಲಿಸಲಾಗುತ್ತಿದೆ… ನಿಲ್ಲಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ",
-    voiceTranscribing: "ಬರೆಯಲಾಗುತ್ತಿದೆ…",
     voiceNotSupported: "ಇಲ್ಲಿ ಧ್ವನಿ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ — ಬದಲಿಗೆ ಟೈಪ್ ಮಾಡಿ",
     voiceMicDenied: "ಮೈಕ್ರೊಫೋನ್ ಪ್ರವೇಶ ನಿರಾಕರಿಸಲಾಗಿದೆ. ಬದಲಿಗೆ ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ.",
+    voiceRecorded: "ಧ್ವನಿ ರೆಕಾರ್ಡ್ ಆಗಿದೆ — ಇದು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಬರೆಯಲ್ಪಡುತ್ತದೆ",
+    voiceTranscribing: "ಬರೆಯಲಾಗುತ್ತಿದೆ…",
+    voiceAttached: "ಧ್ವನಿ ರೆಕಾರ್ಡಿಂಗ್ ಲಗತ್ತಿಸಲಾಗಿದೆ",
     ackTitle: "ನಿಮ್ಮ ಧ್ವನಿಯನ್ನು ಕೇಳಲಾಗಿದೆ.",
     ackBody:
       "ಇದನ್ನು ದಾಖಲಿಸಲಾಗಿದೆ ಮತ್ತು ಈಗ ಅದು ನಿಮ್ಮ ಕ್ಷೇತ್ರದಲ್ಲಿ ಬೇಡಿಕೆಯ ನೈಜ ಮಾದರಿಯ ಭಾಗವಾಗಿದೆ.",
@@ -215,9 +224,11 @@ const COPY: Record<
     privacyLine: "கண்காணிப்பு எண் இல்லை, நிலை இல்லை, காலவரிசை இல்லை. நேர்மையான ஒப்புகை மட்டுமே.",
     voiceSpeak: "பேசுங்கள்",
     voiceListening: "கேட்கிறது… நிறுத்த தட்டவும்",
-    voiceTranscribing: "எழுதப்படுகிறது…",
     voiceNotSupported: "இங்கே குரல் ஆதரிக்கப்படவில்லை — பதிலாக தட்டச்சு செய்யுங்கள்",
     voiceMicDenied: "மைக்ரோஃபோன் அணுகல் மறுக்கப்பட்டது. பதிலாக உங்கள் பிரச்சினையை தட்டச்சு செய்யுங்கள்.",
+    voiceRecorded: "குரல் பதிவு செய்யப்பட்டது — இது தானாக எழுதப்படும்",
+    voiceTranscribing: "எழுதப்படுகிறது…",
+    voiceAttached: "குரல் பதிவு இணைக்கப்பட்டது",
     ackTitle: "உங்கள் குரல் கேட்கப்பட்டுள்ளது.",
     ackBody:
       "இது பதிவு செய்யப்பட்டுள்ளது, இப்போது உங்கள் தொகுதியில் தேவையின் உண்மையான வடிவத்தின் ஒரு பகுதியாக உள்ளது.",
@@ -255,9 +266,11 @@ const COPY: Record<
     privacyLine: "ట్రాకింగ్ నంబర్ లేదు, స్థితి లేదు, కాలక్రమం లేదు. కేవలం నిజాయితీగల అంగీకారం.",
     voiceSpeak: "మాట్లాడండి",
     voiceListening: "వింటున్నాం… ఆపడానికి నొక్కండి",
-    voiceTranscribing: "వ్రాయబడుతోంది…",
     voiceNotSupported: "ఇక్కడ వాయిస్ మద్దతు లేదు — బదులుగా టైప్ చేయండి",
     voiceMicDenied: "మైక్రోఫోన్ యాక్సెస్ నిరాకరించబడింది. బదులుగా మీ సమస్యను టైప్ చేయండి.",
+    voiceRecorded: "వాయిస్ రికార్డ్ చేయబడింది — ఇది స్వయంచాలకంగా రాయబడుతుంది",
+    voiceTranscribing: "వ్రాయబడుతోంది…",
+    voiceAttached: "వాయిస్ రికార్డింగ్ జోడించబడింది",
     ackTitle: "మీ గొంతు వినబడింది.",
     ackBody:
       "ఇది నమోదు చేయబడింది మరియు ఇప్పుడు మీ నియోజకవర్గంలో డిమాండ్ యొక్క నిజమైన నమూనాలో భాగం.",
@@ -295,9 +308,11 @@ const COPY: Record<
     privacyLine: "কোনো ট্র্যাকিং নম্বর নেই, কোনো স্ট্যাটাস নেই, কোনো সময়সীমা নেই। শুধুমাত্র একটি সৎ স্বীকৃতি।",
     voiceSpeak: "বলুন",
     voiceListening: "শোনা হচ্ছে… থামাতে ট্যাপ করুন",
-    voiceTranscribing: "লেখা হচ্ছে…",
     voiceNotSupported: "এখানে ভয়েস সমর্থিত নয় — পরিবর্তে টাইপ করুন",
     voiceMicDenied: "মাইক্রোফোন অ্যাক্সেস প্রত্যাখ্যান করা হয়েছে। পরিবর্তে আপনার সমস্যা টাইপ করুন।",
+    voiceRecorded: "ভয়েস রেকর্ড হয়েছে — এটি স্বয়ংক্রিয়ভাবে লেখা হবে",
+    voiceTranscribing: "লেখা হচ্ছে…",
+    voiceAttached: "ভয়েস রেকর্ডিং সংযুক্ত হয়েছে",
     ackTitle: "আপনার কণ্ঠস্বর শোনা হয়েছে।",
     ackBody:
       "এটি রেকর্ড করা হয়েছে এবং এখন আপনার নির্বাচনী এলাকায় চাহিদার একটি বাস্তব প্যাটার্নের অংশ।",
@@ -336,6 +351,7 @@ export default function SubmitPage() {
   const [locality, setLocality] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+  const [audioBase64, setAudioBase64] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [manualArea, setManualArea] = useState("");
   const [showManualArea, setShowManualArea] = useState(false);
@@ -343,14 +359,12 @@ export default function SubmitPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [ack, setAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const draftIdRef = useRef("");
+  const [draftId] = useState(() => getOrCreateDraftId());
   const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     initOfflineQueue();
 
-    const draftId = getOrCreateDraftId();
-    draftIdRef.current = draftId;
     loadDraft(draftId)
       .then((draft) => {
         if (!draft) return;
@@ -361,6 +375,7 @@ export default function SubmitPage() {
         setRole(draft.role);
         setLocality(draft.locality);
         setManualArea(draft.manualArea);
+        setAudioBase64(draft.audioBase64 ?? "");
       })
       .finally(() => {
         draftLoadedRef.current = true;
@@ -373,7 +388,7 @@ export default function SubmitPage() {
   useEffect(() => {
     if (!draftLoadedRef.current || status === "done") return;
     const timer = setTimeout(() => {
-      void saveDraft(draftIdRef.current, {
+      void saveDraft(draftId, {
         mode,
         issueTitle,
         assistedPerson,
@@ -381,12 +396,15 @@ export default function SubmitPage() {
         role,
         locality,
         manualArea,
+        audioBase64,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, status]);
+  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, audioBase64, status]);
 
-  const canSubmit = text.trim().length > 8 && status !== "sending";
+  // A citizen who can't type may submit with only a voice recording attached
+  // (transcribed server-side) — text length alone shouldn't gate submission.
+  const canSubmit = (text.trim().length > 8 || !!audioBase64) && status !== "sending";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -408,10 +426,11 @@ export default function SubmitPage() {
           topic: issueTitle.trim(),
           description: text.trim(),
           imageBase64,
+          audioBase64,
           latitude: coords?.lat ?? null,
           longitude: coords?.lng ?? null,
         },
-        draftIdRef.current,
+        draftId,
       );
 
       setAck(true);
@@ -430,6 +449,7 @@ export default function SubmitPage() {
     setLocality("");
     setPhotoFile(null);
     setPhotoPreviewUrl("");
+    setAudioBase64("");
     setCoords(null);
     setManualArea("");
     setShowManualArea(false);
@@ -554,12 +574,14 @@ export default function SubmitPage() {
                         onTranscript={(spoken) =>
                           setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken))
                         }
+                        onAudioCaptured={(audio) => setAudioBase64(audio)}
                         labels={{
                           speak: copy.voiceSpeak,
                           listening: copy.voiceListening,
-                          transcribing: copy.voiceTranscribing,
                           notSupported: copy.voiceNotSupported,
                           micDenied: copy.voiceMicDenied,
+                          recorded: copy.voiceRecorded,
+                          transcribing: copy.voiceTranscribing,
                         }}
                       />
                     </div>
@@ -615,6 +637,21 @@ export default function SubmitPage() {
                         >
                           <X className="h-3.5 w-3.5" />
                           {copy.remove}
+                        </button>
+                      </div>
+                    )}
+
+                    {audioBase64 && (
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink">
+                        <Mic className="h-3.5 w-3.5 text-accent" />
+                        {copy.voiceAttached}
+                        <button
+                          type="button"
+                          onClick={() => setAudioBase64("")}
+                          className="text-ink-muted hover:text-ink"
+                          aria-label="Remove voice recording"
+                        >
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     )}
