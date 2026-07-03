@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from location_service import latest_submission_with_location, resolve_display_location
+
 STOP_WORDS = {
     "the", "a", "an", "is", "are", "to", "of", "in", "on", "at", "and", "for",
     "we", "our", "my", "i", "it", "this", "that", "near", "no", "not", "has",
@@ -98,13 +100,17 @@ def _build_theme(group: _Group) -> dict[str, Any]:
     )
     relay_count = sum(1 for m in members if m.get("submittedFor") == "someone_else")
 
+    # Dashboard shows the latest location citizens provided for this theme.
+    location_source = latest_submission_with_location(members) or representative
+    locality = resolve_display_location(location_source)
+
     return {
         "id": representative["id"],
         "topic": representative.get("topic") or "",
         "description": representative.get("description") or "",
         "issueType": representative.get("issueType") or "",
         "severity": representative.get("severity") or "Normal",
-        "locality": representative.get("locality") or "",
+        "locality": locality,
         "submittedFor": representative.get("submittedFor") or "myself",
         "affected": len(members),
         "relayShare": relay_count / len(members) if members else 0,
@@ -112,6 +118,6 @@ def _build_theme(group: _Group) -> dict[str, Any]:
         "createdAt": max((m.get("createdAt") or "" for m in members), default=None) or None,
         "aiTags": representative.get("aiTags") or [],
         "hasImage": any(m.get("hasImage") for m in members),
-        "latitude": representative.get("latitude"),
-        "longitude": representative.get("longitude"),
+        "latitude": location_source.get("latitude"),
+        "longitude": location_source.get("longitude"),
     }
