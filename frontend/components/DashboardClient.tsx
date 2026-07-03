@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight, Layers, Megaphone, FlaskConical,
-  MapPin, AlertTriangle, CheckCircle2, Users, Radio, Map, TrendingUp,
+  MapPin, CheckCircle2, Users, Radio, Map, TrendingUp,
   AlertCircle,
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
@@ -32,7 +32,6 @@ export function DashboardClient() {
   const dummyThemes = clusters.filter((c) => c.status !== "published");
   const pending = [...realThemes, ...dummyThemes].sort((a, b) => b.score - a.score);
   const newThemes     = clusters.filter((c) => c.status === "new");
-  const gapItems      = clusters.filter((c) => c.sanctionedProject);
   const showcaseItems = clusters.filter((c) => c.status === "published");
 
   useEffect(() => {
@@ -199,26 +198,6 @@ export function DashboardClient() {
                 label="Insights" desc="Hotspot map"
                 className="bg-ink text-surface-white" descClass="text-white/60" />
             </div>
-
-            {gapItems.length > 0 && (
-              <div className="warning-banner rounded-2xl p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-accent" />
-                  <p className="text-xs font-bold uppercase tracking-widest text-accent">
-                    Demand gap — internal only
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  {gapItems.map((c) => (
-                    <div key={c.id} className="rounded-xl bg-surface-white/60 p-3">
-                      <div className="text-sm font-semibold text-ink">{c.title}</div>
-                      <div className="mt-0.5 text-xs text-accent">{c.sanctionedProject}</div>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-[11px] text-ink-muted">Never published externally · MP view only</p>
-              </div>
-            )}
 
             {showcaseItems.length > 0 && (
               <div className="card flex-1">
