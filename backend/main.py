@@ -23,6 +23,7 @@ from firestore_service import (
 )
 from gemini_service import classify_issue, default_classification
 from groq_service import analyze_issue, default_analysis
+from location_service import resolve_display_location
 from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
 from theme_service import group_into_themes
@@ -253,6 +254,13 @@ async def get_submission_endpoint(submission_id: str) -> dict[str, Any]:
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
+
+    # Show the same readable location the dashboard resolves — when the citizen
+    # only shared GPS coordinates, reverse-geocode them into a place name so the
+    # detail page no longer reads "Location not provided".
+    resolved = await asyncio.to_thread(resolve_display_location, submission)
+    if resolved:
+        submission = {**submission, "locality": resolved}
 
     return submission
 
