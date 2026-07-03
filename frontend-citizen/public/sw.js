@@ -172,6 +172,19 @@ function backoffDelay(attempts) {
   return Math.min(MAX_RETRY_DELAY_MS, BASE_RETRY_DELAY_MS * Math.pow(2, attempts));
 }
 
+// Mirrors lib/offlineQueue.ts's minimizePayload — every field has a matching
+// default on the backend, so omitting empty/default values keeps the
+// request body small on the weak connections this app targets.
+function minimizePayload(payload) {
+  const trimmed = {};
+  for (const key of Object.keys(payload)) {
+    const value = payload[key];
+    if (value === "" || value === null) continue;
+    trimmed[key] = value;
+  }
+  return trimmed;
+}
+
 async function syncPendingSubmissions() {
   const apiBase = (await getConfig("apiBase")) || DEFAULT_API_BASE;
   const items = await getAllQueued();
@@ -187,7 +200,7 @@ async function syncPendingSubmissions() {
       const res = await fetch(`${apiBase}/api/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item.payload),
+        body: JSON.stringify(minimizePayload(item.payload)),
       });
       if (!res.ok) throw new Error("submission failed");
       await removeQueued(item.id);

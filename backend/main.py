@@ -12,6 +12,7 @@ from typing import Any, Literal
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 
 from firestore_service import (
@@ -59,6 +60,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Compress responses over ~1KB — matters most on the weak/metered connections
+# this app is built for (submissions/clusters lists, images excluded since
+# they're already compressed and gzip wouldn't help).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 class SubmissionBody(BaseModel):
@@ -198,6 +203,14 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
     )
 
     return {"ok": True, "id": result["id"], **classification}
+
+
+@app.get("/api/health")
+async def health() -> dict[str, bool]:
+    """Cheap endpoint the frontend pings to verify real backend reachability
+    — navigator.onLine alone reports true even on a LAN with no real
+    internet access, or when the backend itself is unreachable."""
+    return {"ok": True}
 
 
 @app.get("/api/submissions")
