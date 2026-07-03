@@ -2,7 +2,7 @@ import { API_BASE } from "./api";
 import type { SubmissionPayload } from "./submissions";
 
 const DB_NAME = "pp_offline_db";
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 const STORE_SUBMISSIONS = "submissions";
 const STORE_CONFIG = "config";
 const STORE_DRAFTS = "drafts";
@@ -21,6 +21,9 @@ export type DraftFields = {
   role: string;
   locality: string;
   manualArea: string;
+  // A citizen who can't type may have only this — must survive a crash or
+  // closed tab the same as typed text does.
+  audioBase64: string;
 };
 
 type DraftRecord = { id: string; fields: DraftFields; updatedAt: number };
