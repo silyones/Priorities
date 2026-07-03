@@ -2,8 +2,3 @@ node_modules/
 dist/
 *.tsbuildinfo
 .env
-
-# Python
-__pycache__/
-*.pyc
-*.pyo

@@ -52,15 +52,34 @@ function issueTypeToCategory(issueType: string): Category {
   return map[issueType] ?? "other";
 }
 
-function urgencyScore(urgency: Urgency): number {
-  if (urgency === "safety") return 90;
-  if (urgency === "high") return 70;
-  return 50;
+function calculateThemeScore(theme: {
+  urgency: Urgency;
+  voiceCount: number;
+  lastSubmittedAt: string | Date;
+}): number {
+  const severityBase = {
+    safety: 60,
+    high: 45,
+    normal: 30,
+  }[theme.urgency];
+
+  const demandBonus = Math.min(30, Math.round(3.6 * Math.log2(theme.voiceCount + 1)));
+
+  const hoursSinceLast =
+    (Date.now() - new Date(theme.lastSubmittedAt).getTime()) / 36e5;
+  const recencyBonus =
+    hoursSinceLast <= 48
+      ? 10
+      : Math.max(0, 10 - ((hoursSinceLast - 48) / (14 * 24)) * 10);
+
+  const total = severityBase + demandBonus + recencyBonus;
+  return Math.round(Math.min(100, Math.max(0, total)));
 }
 
 export function submissionToTheme(submission: ApiSubmission): Cluster {
   const urgency = severityToUrgency(submission.severity ?? "");
   const title = submission.topic?.trim() || submission.description?.trim().slice(0, 80) || "Untitled submission";
+  const lastSubmittedAt = submission.createdAt ?? new Date().toISOString();
 
   return {
     id: submission.id,
@@ -71,7 +90,11 @@ export function submissionToTheme(submission: ApiSubmission): Cluster {
     affected: 1,
     urgency,
     status: "new",
-    score: urgencyScore(urgency),
+    score: calculateThemeScore({
+      urgency,
+      voiceCount: 1,
+      lastSubmittedAt,
+    }),
     isLiveSubmission: true,
     rationale: {
       demandComponent: 0,
@@ -262,11 +285,17 @@ export interface ThemeApiResponse extends ApiSubmission {
 
 export function themeFromApi(theme: ThemeApiResponse): Cluster {
   const cluster = submissionToTheme(theme);
+  const lastSubmittedAt = theme.createdAt ?? new Date().toISOString();
   return {
     ...cluster,
     affected: theme.affected,
     relayShare: theme.relayShare,
     sampleQuotes: theme.sampleQuotes.length ? theme.sampleQuotes : cluster.sampleQuotes,
+    score: calculateThemeScore({
+      urgency: cluster.urgency,
+      voiceCount: theme.affected,
+      lastSubmittedAt,
+    }),
   };
 }
 

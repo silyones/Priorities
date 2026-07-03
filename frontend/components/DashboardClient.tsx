@@ -30,7 +30,7 @@ export function DashboardClient() {
   const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
   const dummyThemes = clusters.filter((c) => c.status !== "published");
-  const pending = [...realThemes, ...dummyThemes];
+  const pending = [...realThemes, ...dummyThemes].sort((a, b) => b.score - a.score);
   const newThemes     = clusters.filter((c) => c.status === "new");
   const gapItems      = clusters.filter((c) => c.sanctionedProject);
   const showcaseItems = clusters.filter((c) => c.status === "published");
