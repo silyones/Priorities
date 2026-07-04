@@ -57,6 +57,18 @@ def list_issues() -> list[dict[str, Any]]:
     return data
 
 
+def list_themes_source_data() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Issues + lean submissions in one bridge round-trip (dashboard themes)."""
+    data = bridge_call({"action": "themes:listSource"})
+    if not isinstance(data, dict):
+        raise RuntimeError("Unexpected themes listSource response")
+    issues = data.get("issues")
+    submissions = data.get("submissions")
+    if not isinstance(issues, list) or not isinstance(submissions, list):
+        raise RuntimeError("Unexpected themes listSource shape")
+    return issues, submissions
+
+
 def count_issues() -> int:
     data = bridge_call({"action": "issues:count"})
     if not isinstance(data, int):
@@ -79,14 +91,17 @@ def get_issue(issue_id: str) -> dict[str, Any] | None:
 def create_issue(
     *,
     issue_type: str,
+    rep_topic: str,
     rep_description: str,
     rep_locality: str,
     rep_submission_id: str,
     submission_id: str,
     phone_number: str | None = None,
+    ai_title: str | None = None,
 ) -> str:
     payload: dict[str, Any] = {
         "issueType": issue_type,
+        "repTopic": rep_topic,
         "repDescription": rep_description,
         "repLocality": rep_locality,
         "repSubmissionId": rep_submission_id,
@@ -94,6 +109,8 @@ def create_issue(
     }
     if phone_number:
         payload["phoneNumber"] = phone_number
+    if ai_title:
+        payload["aiTitle"] = ai_title
     data = bridge_call({"action": "issues:create", "payload": payload})
     if not isinstance(data, dict) or not data.get("id"):
         raise RuntimeError("Unexpected issue create response")

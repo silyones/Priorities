@@ -12,13 +12,14 @@ from firestore_service import (
     list_issues,
     list_issues_by_issue_type,
     list_submissions,
+    list_themes_source_data,
     update_issue_status,
 )
 from theme_service import (
-    SIMILARITY_THRESHOLD,
     build_theme_from_members,
     group_submissions,
     pick_representative,
+    should_merge_submissions,
     submission_match_score,
 )
 
@@ -32,6 +33,7 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
         raise ValueError("Submission id is required")
 
     issue_type = str(submission.get("issueType") or "")
+    topic = str(submission.get("topic") or "")
     description = str(submission.get("description") or "")
     locality = str(submission.get("locality") or "")
     phone = submission.get("phoneNumber")
@@ -45,9 +47,11 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
 
     for issue in candidates:
         score = submission_match_score(
+            topic=topic,
             description=description,
             locality=locality,
             issue_type=issue_type,
+            rep_topic=str(issue.get("repTopic") or ""),
             rep_description=str(issue.get("repDescription") or ""),
             rep_locality=str(issue.get("repLocality") or ""),
             rep_issue_type=str(issue.get("issueType") or ""),
@@ -56,7 +60,16 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
             best_score = score
             best_issue = issue
 
-    if best_issue is not None and best_score >= SIMILARITY_THRESHOLD:
+    if best_issue is not None and should_merge_submissions(
+        topic=topic,
+        description=description,
+        locality=locality,
+        issue_type=issue_type,
+        rep_topic=str(best_issue.get("repTopic") or ""),
+        rep_description=str(best_issue.get("repDescription") or ""),
+        rep_locality=str(best_issue.get("repLocality") or ""),
+        rep_issue_type=str(best_issue.get("issueType") or ""),
+    ):
         attach_submission_to_issue(
             best_issue["id"],
             submission_id,
@@ -64,23 +77,38 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
         )
         return best_issue["id"]
 
+    ai_title = _safe_generate_title(topic, description)
+
     return create_issue(
         issue_type=issue_type,
+        rep_topic=topic,
         rep_description=description,
         rep_locality=locality,
         rep_submission_id=submission_id,
         submission_id=submission_id,
         phone_number=phone_number,
+        ai_title=ai_title,
     )
+
+
+def _safe_generate_title(topic: str, description: str) -> str:
+    """Generate an AI issue title; never let it block issue creation."""
+    try:
+        from gemini_service import generate_issue_title
+
+        return generate_issue_title(topic, description)
+    except Exception:
+        base = (topic or "").strip() or (description or "").strip()
+        base = " ".join(base.split())
+        return (base[:77].rstrip() + "…") if len(base) > 80 else (base or "Citizen issue")
 
 
 def issues_to_themes(*, include_completed: bool = False) -> list[dict[str, Any]]:
     """Read persisted issues and shape them like GET /api/submissions/themes."""
-    issues = list_issues()
+    issues, submissions = list_themes_source_data()
     if not issues:
         return []
 
-    submissions = list_submissions()
     by_id = {s["id"]: s for s in submissions if s.get("id")}
 
     themes: list[dict[str, Any]] = []
@@ -113,11 +141,10 @@ def _theme_from_issue_and_members(
 
 def completed_issues_for_showcase() -> list[dict[str, Any]]:
     """Completed live issues as Cluster-shaped items for GET /api/showcase."""
-    issues = list_issues()
+    issues, submissions = list_themes_source_data()
     if not issues:
         return []
 
-    submissions = list_submissions()
     by_id = {s["id"]: s for s in submissions if s.get("id")}
 
     items: list[dict[str, Any]] = []
@@ -202,11 +229,23 @@ def get_issue_detail(issue_id: str) -> dict[str, Any]:
         completed_at=issue.get("completedAt"),
     )
 
+    ordered_members = [by_id[sid] for sid in issue.get("submissionIds", []) if sid in by_id]
+    voices = [
+        {
+            "id": m.get("id") or "",
+            "topic": (m.get("topic") or "").strip(),
+            "description": (m.get("description") or "").strip(),
+        }
+        for m in ordered_members
+    ]
+
     return {
         **theme,
+        "aiTitle": (issue.get("aiTitle") or "").strip(),
         "name": rep.get("name") or "",
         "role": rep.get("role") or "",
         "submissionIds": issue.get("submissionIds") or [],
+        "voices": voices,
     }
 
 
@@ -252,6 +291,7 @@ def migration_groups_from_submissions() -> list[dict[str, Any]]:
         groups.append(
             {
                 "issueType": representative.get("issueType") or "",
+                "repTopic": representative.get("topic") or "",
                 "repDescription": representative.get("description") or "",
                 "repLocality": representative.get("locality") or "",
                 "repSubmissionId": representative["id"],

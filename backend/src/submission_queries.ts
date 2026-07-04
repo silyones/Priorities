@@ -59,8 +59,7 @@ function mapSubmissionDoc(
   data: DocumentData,
   includePhone: boolean,
 ): SubmissionInternal {
-  const imageBase64 = data.imageBase64;
-  const hasImage = typeof imageBase64 === "string" && imageBase64.trim().length > 0;
+  const hasImage = data.hasImage === true;
   const phoneRaw = data.phoneNumber;
   return {
     id,
@@ -91,7 +90,26 @@ export async function listSubmissions(): Promise<SubmissionListItem[]> {
 
 export async function listSubmissionsInternal(): Promise<SubmissionInternal[]> {
   const db = getFirestoreDb();
-  const snap = await db.collection("submissions").orderBy("createdAt", "desc").get();
+  const snap = await db
+    .collection("submissions")
+    .orderBy("createdAt", "desc")
+    .select(
+      "topic",
+      "description",
+      "issueType",
+      "severity",
+      "locality",
+      "submittedFor",
+      "name",
+      "role",
+      "aiTags",
+      "latitude",
+      "longitude",
+      "hasImage",
+      "phoneNumber",
+      "createdAt",
+    )
+    .get();
 
   return snap.docs.map((docSnap) =>
     mapSubmissionDoc(docSnap.id, docSnap.data(), true),

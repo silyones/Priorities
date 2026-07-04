@@ -309,7 +309,21 @@ export function themeFromApi(theme: ThemeApiResponse): Cluster {
 // #30) — multiple citizens reporting the same/similar issue collapse into
 // one theme with an incremented voice count, rather than each staying its
 // own permanently separate card.
+let themesInflight: Promise<{ themes: Cluster[]; error: string | null }> | null = null;
+
 export async function fetchSubmissionThemes(): Promise<{
+  themes: Cluster[];
+  error: string | null;
+}> {
+  if (themesInflight) return themesInflight;
+
+  themesInflight = fetchSubmissionThemesOnce().finally(() => {
+    themesInflight = null;
+  });
+  return themesInflight;
+}
+
+async function fetchSubmissionThemesOnce(): Promise<{
   themes: Cluster[];
   error: string | null;
 }> {

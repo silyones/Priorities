@@ -176,7 +176,12 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
 
   const title = useMemo(() => {
     if (!issue) return "Issue brief";
-    return issue.topic?.trim() || issue.description?.trim().slice(0, 80) || "Untitled issue";
+    return (
+      issue.aiTitle?.trim() ||
+      issue.topic?.trim() ||
+      issue.description?.trim().slice(0, 80) ||
+      "Untitled issue"
+    );
   }, [issue]);
 
   const mapsUrl = useMemo(() => {
@@ -313,13 +318,36 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
               <div className="flex items-center gap-2 text-sm font-bold text-ink">
                 <Quote className="h-4 w-4 text-ink-muted" />
                 Citizen&apos;s words
+                {issue.voices.length > 1 && (
+                  <span className="ml-1 text-xs font-medium text-ink-muted">
+                    · {issue.voices.length} voices
+                  </span>
+                )}
               </div>
-              {issue.topic?.trim() && (
-                <p className="mt-3 text-base font-semibold text-ink">{issue.topic}</p>
+              {issue.voices.length > 1 ? (
+                <ul className="mt-3 space-y-1.5">
+                  {issue.voices.map((voice, i) => {
+                    const line = voice.topic.trim() || voice.description.trim();
+                    return (
+                      <li
+                        key={voice.id || i}
+                        className="text-sm leading-relaxed text-ink-muted"
+                      >
+                        &ldquo;{line || "(no title provided)"}&rdquo;
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <>
+                  {issue.topic?.trim() && (
+                    <p className="mt-3 text-base font-semibold text-ink">{issue.topic}</p>
+                  )}
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">
+                    {issue.description}
+                  </p>
+                </>
               )}
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">
-                {issue.description}
-              </p>
             </div>
           </div>
 
