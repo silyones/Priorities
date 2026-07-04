@@ -16,6 +16,7 @@ export type IssueRecord = {
   subscriberCount: number;
   lastNotifiedStatus: string | null;
   createdAt: string | null;
+  completedAt: string | null;
 };
 
 export type SubscriberRecord = {
@@ -54,6 +55,7 @@ function serializeIssue(docSnap: QueryDocumentSnapshot<DocumentData>): IssueReco
     lastNotifiedStatus:
       typeof data.lastNotifiedStatus === "string" ? data.lastNotifiedStatus : null,
     createdAt: serializeTimestamp(data.createdAt),
+    completedAt: serializeTimestamp(data.completedAt),
   };
 }
 
@@ -175,6 +177,11 @@ export async function updateIssueStatus(input: {
   const db = getFirestoreDb();
   const issueRef = db.collection("issues").doc(input.issueId);
   const update: Record<string, unknown> = { status: input.status };
+  if (input.status === "Completed") {
+    update.completedAt = FieldValue.serverTimestamp();
+  } else {
+    update.completedAt = null;
+  }
   if (input.lastNotifiedStatus !== undefined) {
     update.lastNotifiedStatus = input.lastNotifiedStatus;
   }

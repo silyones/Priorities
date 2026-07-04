@@ -1,20 +1,44 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Printer, Users, CheckCircle2, Calendar } from "lucide-react";
+import { Printer, Users, CheckCircle2, Calendar, Loader2 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
 import { CategoryBadge } from "@/components/ui";
 import { Tag } from "@/components/ui/Tag";
+import { patchIssueStatus } from "@/lib/issues";
+import { isLiveSubmissionCluster } from "@/lib/submissions";
 
 const up = {
   hidden: { opacity: 0, y: 16 },
   show:   { opacity: 1, y: 0 },
 };
 
-export function ShowcaseClient({ items, publishedCount }: {
+export function ShowcaseClient({ items: initialItems, publishedCount: initialCount }: {
   items: Cluster[];
   publishedCount: number;
 }) {
+  const router = useRouter();
+  const [items, setItems] = useState(initialItems);
+  const [publishedCount, setPublishedCount] = useState(initialCount);
+
+  useEffect(() => {
+    setItems(initialItems);
+    setPublishedCount(initialCount);
+  }, [initialItems, initialCount]);
+
+  const handleReopen = async (issueId: string) => {
+    const result = await patchIssueStatus(issueId, "Open");
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    setItems((prev) => prev.filter((c) => c.id !== issueId));
+    setPublishedCount((n) => Math.max(0, n - 1));
+    router.refresh();
+  };
+
   const totalServed = items.reduce((n, c) => n + c.affected, 0);
 
   return (
@@ -61,14 +85,15 @@ export function ShowcaseClient({ items, publishedCount }: {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
             >
-              <ShowcaseCard cluster={c} />
+              <ShowcaseCard cluster={c} onReopen={handleReopen} />
             </motion.div>
           ))}
         </motion.div>
 
         {items.length === 0 && (
           <div className="mt-20 text-center text-ink-muted">
-            No outcomes published yet. Use the MP triage tool to publish completed work.
+            No completed outcomes yet. Mark a live issue as Completed from its issue brief,
+            or use the MP triage tool to publish demo outcomes.
           </div>
         )}
       </div>
@@ -76,9 +101,44 @@ export function ShowcaseClient({ items, publishedCount }: {
   );
 }
 
-function ShowcaseCard({ cluster }: { cluster: Cluster }) {
+function ShowcaseCard({
+  cluster,
+  onReopen,
+}: {
+  cluster: Cluster;
+  onReopen: (issueId: string) => Promise<void>;
+}) {
+  const [reopening, setReopening] = useState(false);
+  const isLive = isLiveSubmissionCluster(cluster);
+
+  const reopen = async () => {
+    if (reopening) return;
+    setReopening(true);
+    try {
+      await onReopen(cluster.id);
+    } finally {
+      setReopening(false);
+    }
+  };
+
   return (
     <div className="card group relative h-full overflow-hidden p-6 shadow-soft transition-all duration-300 hover:-translate-y-1">
+      {isLive && (
+        <button
+          type="button"
+          onClick={reopen}
+          disabled={reopening}
+          className="absolute right-4 top-4 z-10 rounded-md border border-border-subtle bg-cream/90 px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:border-ink-muted hover:text-ink disabled:opacity-60"
+        >
+          {reopening ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Reopening…
+            </span>
+          ) : (
+            "Reopen issue"
+          )}
+        </button>
+      )}
       <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-tag-teal-bg blur-3xl transition-all group-hover:bg-tag-teal-bg/80" />
       <div className="relative">
         <div className="flex items-center justify-between">

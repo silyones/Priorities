@@ -168,6 +168,7 @@ def build_theme_from_members(
     rep_submission_id: str,
     issue_status: str = "Open",
     subscriber_count: int = 0,
+    completed_at: str | None = None,
 ) -> dict[str, Any]:
     """Build the API theme shape from persisted issue metadata + member submissions."""
     if not members:
@@ -192,6 +193,7 @@ def build_theme_from_members(
         "affected": len(members),
         "subscriberCount": subscriber_count,
         "issueStatus": issue_status,
+        "completedAt": completed_at,
         "relayShare": relay_count / len(members) if members else 0,
         "sampleQuotes": [m.get("description") or "" for m in members[:5]],
         "createdAt": max((m.get("createdAt") or "" for m in members), default=None) or None,

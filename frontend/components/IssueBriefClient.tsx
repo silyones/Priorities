@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -75,6 +75,7 @@ function formatDate(iso: string | null): string {
 
 export function IssueBriefClient({ submissionId: submissionIdProp }: { submissionId?: string }) {
   const params = useParams();
+  const router = useRouter();
   const routeId = typeof params?.id === "string" ? params.id : "";
   const issueId = submissionIdProp || routeId;
 
@@ -165,6 +166,9 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
     setStatusSaving(false);
     if (result.ok) {
       setIssue({ ...issue, issueStatus: next });
+      if (next === "Completed") {
+        router.push("/showcase");
+      }
     } else {
       setStatusError(result.error);
     }

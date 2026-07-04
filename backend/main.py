@@ -28,6 +28,7 @@ from groq_service import analyze_issue, default_analysis
 from issue_service import (
     NOTIFY_STATUSES,
     assign_to_issue,
+    completed_issues_for_showcase,
     get_issue_detail,
     get_subscribers,
     issues_to_themes,
@@ -553,10 +554,18 @@ async def patch_cluster(cluster_id: str, body: ClusterPatchBody) -> dict[str, An
 @app.get("/api/showcase")
 async def showcase() -> dict[str, Any]:
     try:
-        return await asyncio.to_thread(get_showcase)
+        demo = await asyncio.to_thread(get_showcase)
+        live_completed = await asyncio.to_thread(completed_issues_for_showcase)
     except RuntimeError as exc:
         message = str(exc)
         raise HTTPException(
             status_code=_runtime_error_status(message),
             detail=message,
         ) from exc
+
+    demo_items = demo.get("items", []) if isinstance(demo, dict) else []
+    if not isinstance(demo_items, list):
+        demo_items = []
+    items = [*demo_items, *live_completed]
+    items.sort(key=lambda item: str(item.get("publishedAt") or ""), reverse=True)
+    return {"items": items}

@@ -37,7 +37,9 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
     phone = submission.get("phoneNumber")
     phone_number = str(phone).strip() if isinstance(phone, str) and phone.strip() else None
 
-    candidates = list_issues_by_issue_type(issue_type)
+    candidates = [
+        i for i in list_issues_by_issue_type(issue_type) if i.get("status") != "Completed"
+    ]
     best_issue: dict[str, Any] | None = None
     best_score = 0.0
 
@@ -72,7 +74,7 @@ def assign_to_issue(submission: dict[str, Any]) -> str:
     )
 
 
-def issues_to_themes() -> list[dict[str, Any]]:
+def issues_to_themes(*, include_completed: bool = False) -> list[dict[str, Any]]:
     """Read persisted issues and shape them like GET /api/submissions/themes."""
     issues = list_issues()
     if not issues:
@@ -83,19 +85,99 @@ def issues_to_themes() -> list[dict[str, Any]]:
 
     themes: list[dict[str, Any]] = []
     for issue in issues:
+        status = str(issue.get("status") or "Open")
+        if not include_completed and status == "Completed":
+            continue
         members = [by_id[sid] for sid in issue.get("submissionIds", []) if sid in by_id]
         if not members:
             continue
         themes.append(
-            build_theme_from_members(
-                issue_id=issue["id"],
-                members=members,
-                rep_submission_id=str(issue.get("repSubmissionId") or members[0]["id"]),
-                issue_status=str(issue.get("status") or "Open"),
-                subscriber_count=int(issue.get("subscriberCount") or 0),
-            )
+            _theme_from_issue_and_members(issue, members),
         )
     return themes
+
+
+def _theme_from_issue_and_members(
+    issue: dict[str, Any],
+    members: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return build_theme_from_members(
+        issue_id=issue["id"],
+        members=members,
+        rep_submission_id=str(issue.get("repSubmissionId") or members[0]["id"]),
+        issue_status=str(issue.get("status") or "Open"),
+        subscriber_count=int(issue.get("subscriberCount") or 0),
+        completed_at=issue.get("completedAt"),
+    )
+
+
+def completed_issues_for_showcase() -> list[dict[str, Any]]:
+    """Completed live issues as Cluster-shaped items for GET /api/showcase."""
+    issues = list_issues()
+    if not issues:
+        return []
+
+    submissions = list_submissions()
+    by_id = {s["id"]: s for s in submissions if s.get("id")}
+
+    items: list[dict[str, Any]] = []
+    for issue in issues:
+        if str(issue.get("status") or "") != "Completed":
+            continue
+        members = [by_id[sid] for sid in issue.get("submissionIds", []) if sid in by_id]
+        if not members:
+            continue
+        theme = _theme_from_issue_and_members(issue, members)
+        items.append(_theme_to_showcase_item(theme))
+
+    items.sort(key=lambda item: item.get("publishedAt") or "", reverse=True)
+    return items
+
+
+def _theme_to_showcase_item(theme: dict[str, Any]) -> dict[str, Any]:
+    title = (theme.get("topic") or "").strip() or (theme.get("description") or "").strip()[:80]
+    if not title:
+        title = "Citizen issue resolved"
+    completed = theme.get("completedAt") or theme.get("createdAt")
+    published_at = completed[:10] if isinstance(completed, str) and completed else None
+    issue_type = str(theme.get("issueType") or "")
+    category = {
+        "Sanitation": "sanitation",
+        "Drainage": "sanitation",
+        "Roads": "roads",
+        "Water Supply": "water",
+        "Electricity": "electricity",
+    }.get(issue_type, "other")
+    severity = str(theme.get("severity") or "Normal")
+    urgency = (
+        "safety"
+        if severity == "Safety risk"
+        else "high"
+        if severity == "High priority"
+        else "normal"
+    )
+    return {
+        "id": theme["id"],
+        "title": title,
+        "category": category,
+        "ward": "",
+        "locality": theme.get("locality") or "Location not provided",
+        "affected": int(theme.get("affected") or 1),
+        "urgency": urgency,
+        "status": "published",
+        "score": 0,
+        "rationale": {
+            "demandComponent": 0,
+            "urgencyComponent": 0,
+            "dataComponent": 0,
+        },
+        "geo": {"x": 50, "y": 50},
+        "sampleQuotes": theme.get("sampleQuotes") or [],
+        "relayShare": float(theme.get("relayShare") or 0),
+        "outcome": title,
+        "publishedAt": published_at,
+        "isLiveSubmission": True,
+    }
 
 
 def get_issue_detail(issue_id: str) -> dict[str, Any]:
@@ -117,6 +199,7 @@ def get_issue_detail(issue_id: str) -> dict[str, Any]:
         rep_submission_id=rep_id,
         issue_status=str(issue.get("status") or "Open"),
         subscriber_count=int(issue.get("subscriberCount") or 0),
+        completed_at=issue.get("completedAt"),
     )
 
     return {
