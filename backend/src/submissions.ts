@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { getFirestoreDb } from "./firebase";
 
 export type SubmissionPayload = {
@@ -14,13 +14,14 @@ export type SubmissionPayload = {
   issueType?: string;
   severity?: string;
   aiTags?: string[];
+  phoneNumber?: string;
 };
 
 export async function saveSubmissionToFirestore(payload: SubmissionPayload) {
   const db = getFirestoreDb();
-  const docRef = await addDoc(collection(db, "submissions"), {
+  const docRef = await db.collection("submissions").add({
     ...payload,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
   return { id: docRef.id };
 }

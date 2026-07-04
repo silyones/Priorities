@@ -52,6 +52,10 @@ export interface Cluster {
   geo: { x: number; y: number };
   sampleQuotes: string[];
   relayShare: number;
+  /** Persisted Firestore issue status (live submissions only). */
+  issueStatus?: string;
+  subscriberCount?: number;
+  repSubmissionId?: string;
 }
 
 export interface ScoreRationale {

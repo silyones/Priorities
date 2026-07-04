@@ -27,6 +27,7 @@ import {
   subscribeConnectivity,
   subscribePendingSubmissionCount,
 } from "@/lib/offlineQueue";
+import { isValidPhoneNumber, parsePhoneNumber } from "@/lib/phoneNumber";
 
 type UILanguage = "english" | "kannada" | "hindi" | "tamil" | "telugu" | "bengali";
 
@@ -61,6 +62,10 @@ const COPY: Record<
     offlineNotice: string;
     pendingCountSingular: string;
     pendingCountPlural: string;
+    phoneNumberHint: string;
+    phoneNumberInvalid: string;
+    phoneNumberLabel: string;
+    phoneNumberPlaceholder: string;
     remove: string;
     submitAnother: string;
     submitButton: string;
@@ -91,6 +96,10 @@ const COPY: Record<
     topicLabel: "What's this about?",
     topicPlaceholder: "e.g. Broken streetlight, no water supply, road full of potholes",
     topicHint: "Keep this short (max 80 characters).",
+    phoneNumberLabel: "Phone number (optional)",
+    phoneNumberPlaceholder: "e.g. 9876543210",
+    phoneNumberHint: "Optional — get SMS updates when this issue progresses.",
+    phoneNumberInvalid: "Enter a valid 10-digit number, or leave blank.",
     describeLabelSelf: "Describe your issue",
     describeLabelRelay: "What did they describe?",
     textareaPlaceholderSelf: "Describe your issue",
@@ -136,6 +145,10 @@ const COPY: Record<
     topicLabel: "यह किस बारे में है?",
     topicPlaceholder: "जैसे टूटी स्ट्रीटलाइट, पानी की आपूर्ति नहीं, गड्ढों से भरी सड़क",
     topicHint: "इसे संक्षिप्त रखें (अधिकतम 80 अक्षर)।",
+    phoneNumberLabel: "फ़ोन नंबर (वैकल्पिक)",
+    phoneNumberPlaceholder: "जैसे 9876543210",
+    phoneNumberHint: "वैकल्पिक — इस मुद्दे पर अपडेट के लिए SMS प्राप्त करें।",
+    phoneNumberInvalid: "मान्य 10-अंकीय नंबर दर्ज करें, या खाली छोड़ दें।",
     describeLabelSelf: "अपनी समस्या का वर्णन करें",
     describeLabelRelay: "उन्होंने क्या बताया?",
     textareaPlaceholderSelf: "अपनी समस्या का वर्णन करें",
@@ -182,6 +195,10 @@ const COPY: Record<
     topicLabel: "ಇದು ಯಾವುದರ ಬಗ್ಗೆ?",
     topicPlaceholder: "ಉದಾ. ಮುರಿದ ಬೀದಿದೀಪ, ನೀರು ಸರಬರಾಜು ಇಲ್ಲ, ಗುಂಡಿಗಳಿಂದ ತುಂಬಿದ ರಸ್ತೆ",
     topicHint: "ಇದನ್ನು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಇರಿಸಿ (ಗರಿಷ್ಠ 80 ಅಕ್ಷರಗಳು).",
+    phoneNumberLabel: "ಫೋನ್ ಸಂಖ್ಯೆ (ಐಚ್ಛಿಕ)",
+    phoneNumberPlaceholder: "ಉದಾ. 9876543210",
+    phoneNumberHint: "ಐಚ್ಛಿಕ — ಈ ಸಮಸ್ಯೆಯ ಪ್ರಗತಿಗೆ SMS ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಪಡೆಯಿರಿ.",
+    phoneNumberInvalid: "ಮಾನ್ಯ 10-ಅಂಕಿಯ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ, ಅಥವಾ ಖಾಲಿ ಬಿಡಿ.",
     describeLabelSelf: "ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಿ",
     describeLabelRelay: "ಅವರು ಏನು ವಿವರಿಸಿದರು?",
     textareaPlaceholderSelf: "ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಿ",
@@ -228,6 +245,10 @@ const COPY: Record<
     topicLabel: "இது எதைப் பற்றியது?",
     topicPlaceholder: "எ.கா. உடைந்த தெருவிளக்கு, தண்ணீர் இல்லை, குழிகள் நிறைந்த சாலை",
     topicHint: "இதை சுருக்கமாக வையுங்கள் (அதிகபட்சம் 80 எழுத்துகள்).",
+    phoneNumberLabel: "தொலைபேசி எண் (விருப்பத்திற்குரியது)",
+    phoneNumberPlaceholder: "எ.கா. 9876543210",
+    phoneNumberHint: "விருப்பம் — இந்த பிரச்சினை முன்னேறும்போது SMS புதுப்பிப்புகளைப் பெறுங்கள்.",
+    phoneNumberInvalid: "சரியான 10-இலக்க எண்ணை உள்ளிடவும், அல்லது காலியாக விடவும்.",
     describeLabelSelf: "உங்கள் பிரச்சினையை விவரிக்கவும்",
     describeLabelRelay: "அவர்கள் என்ன விவரித்தார்கள்?",
     textareaPlaceholderSelf: "உங்கள் பிரச்சினையை விவரிக்கவும்",
@@ -274,6 +295,10 @@ const COPY: Record<
     topicLabel: "ఇది దేని గురించి?",
     topicPlaceholder: "ఉదా. విరిగిన వీధి దీపం, నీటి సరఫరా లేదు, గుంతలతో నిండిన రోడ్డు",
     topicHint: "దీన్ని క్లుప్తంగా ఉంచండి (గరిష్టంగా 80 అక్షరాలు).",
+    phoneNumberLabel: "ఫోన్ నంబర్ (ఐచ్ఛికం)",
+    phoneNumberPlaceholder: "ఉదా. 9876543210",
+    phoneNumberHint: "ఐచ్ఛికం — ఈ సమస్య పురోగతికి SMS అప్‌డేట్‌లు పొందండి.",
+    phoneNumberInvalid: "చెల్లుబాటు అయ్యే 10-అంకెల నంబర్ నమోదు చేయండి, లేదా ఖాళీగా వదిలేయండి.",
     describeLabelSelf: "మీ సమస్యను వివరించండి",
     describeLabelRelay: "వారు ఏమి వివరించారు?",
     textareaPlaceholderSelf: "మీ సమస్యను వివరించండి",
@@ -320,6 +345,10 @@ const COPY: Record<
     topicLabel: "এটা কী সম্পর্কে?",
     topicPlaceholder: "যেমন ভাঙা স্ট্রিটলাইট, জল সরবরাহ নেই, গর্তে ভরা রাস্তা",
     topicHint: "এটি সংক্ষিপ্ত রাখুন (সর্বোচ্চ ৮০ অক্ষর)।",
+    phoneNumberLabel: "ফোন নম্বর (ঐচ্ছিক)",
+    phoneNumberPlaceholder: "যেমন 9876543210",
+    phoneNumberHint: "ঐচ্ছিক — এই সমস্যার অগ্রগতিতে SMS আপডেট পান।",
+    phoneNumberInvalid: "বৈধ ১০-অঙ্কের নম্বর লিখুন, অথবা খালি রাখুন।",
     describeLabelSelf: "আপনার সমস্যা বর্ণনা করুন",
     describeLabelRelay: "তারা কী বর্ণনা করেছে?",
     textareaPlaceholderSelf: "আপনার সমস্যা বর্ণনা করুন",
@@ -385,6 +414,8 @@ export default function SubmitPage() {
   const [audioBase64, setAudioBase64] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [manualArea, setManualArea] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [showManualArea, setShowManualArea] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -418,6 +449,7 @@ export default function SubmitPage() {
         setRole(draft.role);
         setLocality(draft.locality);
         setManualArea(draft.manualArea);
+        setPhoneNumber(draft.phoneNumber ?? "");
         setAudioBase64(draft.audioBase64 ?? "");
       })
       .finally(() => {
@@ -439,11 +471,12 @@ export default function SubmitPage() {
         role,
         locality,
         manualArea,
+        phoneNumber,
         audioBase64,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, audioBase64, status]);
+  }, [mode, issueTitle, assistedPerson, text, role, locality, manualArea, phoneNumber, audioBase64, status]);
 
   // A citizen who can't type may submit with only a voice recording attached
   // (transcribed server-side) — text length alone shouldn't gate submission.
@@ -452,10 +485,18 @@ export default function SubmitPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+
+    if (!isValidPhoneNumber(phoneNumber)) {
+      setPhoneError(copy.phoneNumberInvalid);
+      return;
+    }
+    setPhoneError(null);
+
     setStatus("sending");
     setSubmitError(null);
     try {
       const imageBase64 = photoFile ? await compressImageFile(photoFile) : "";
+      const normalizedPhone = parsePhoneNumber(phoneNumber);
 
       // Writes to the offline queue first and resolves immediately — the
       // network attempt happens in the background, so a citizen never sees
@@ -472,6 +513,7 @@ export default function SubmitPage() {
           audioBase64,
           latitude: coords?.lat ?? null,
           longitude: coords?.lng ?? null,
+          ...(normalizedPhone ? { phoneNumber: normalizedPhone } : {}),
         },
         draftId,
       );
@@ -495,6 +537,8 @@ export default function SubmitPage() {
     setAudioBase64("");
     setCoords(null);
     setManualArea("");
+    setPhoneNumber("");
+    setPhoneError(null);
     setShowManualArea(false);
     setStatus("idle");
     setSubmitError(null);
@@ -614,6 +658,24 @@ export default function SubmitPage() {
                       maxLength={80}
                     />
                     <p className="mt-1 text-xs text-ink-muted">{copy.topicHint}</p>
+                  </div>
+
+                  <div className="mt-5">
+                    <Field
+                      label={copy.phoneNumberLabel}
+                      placeholder={copy.phoneNumberPlaceholder}
+                      value={phoneNumber}
+                      onChange={(value) => {
+                        setPhoneNumber(value);
+                        if (phoneError) setPhoneError(null);
+                      }}
+                      inputMode="tel"
+                      autoComplete="tel"
+                    />
+                    <p className="mt-1 text-xs text-ink-muted">{copy.phoneNumberHint}</p>
+                    {phoneError && (
+                      <p className="mt-1 text-xs text-tag-red-text">{phoneError}</p>
+                    )}
                   </div>
 
                   <div className="mt-5">
@@ -815,12 +877,16 @@ function Field({
   value,
   onChange,
   maxLength,
+  inputMode,
+  autoComplete,
 }: {
   label: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
   maxLength?: number;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -830,6 +896,8 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         className="mt-1.5 w-full rounded-xl border border-border-subtle bg-cream px-3.5 py-2.5 text-sm text-ink outline-none transition-all placeholder:text-ink-muted focus:border-accent focus:ring-4 focus:ring-accent/15"
       />
     </label>

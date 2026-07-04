@@ -10,23 +10,36 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 
 from firestore_service import (
+    get_issue,
     get_submission,
     get_submission_image,
     list_submissions,
     save_submission,
+    update_issue_status,
 )
 from gemini_service import classify_issue, default_classification
 from groq_service import analyze_issue, default_analysis
+from issue_service import (
+    NOTIFY_STATUSES,
+    assign_to_issue,
+    get_issue_detail,
+    get_subscribers,
+    issues_to_themes,
+    patch_issue_status,
+    subscribers_for_notification,
+)
 from location_service import resolve_display_location
+from mp_auth import require_mp_api_key
+from phone_utils import parse_phone_number
 from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
-from theme_service import group_into_themes
+from twilio_service import notify_issue_subscribers
 from ts_bridge import warm_bridge
 
 load_dotenv()
@@ -82,6 +95,7 @@ class SubmissionBody(BaseModel):
     audioBase64: str = ""
     latitude: float | None = None
     longitude: float | None = None
+    phoneNumber: str = ""
 
 
 class SubmitBody(BaseModel):
@@ -108,6 +122,10 @@ class SubmissionAnalysisBody(BaseModel):
     locality: str = ""
     submittedFor: str = ""
     hasImage: bool = False
+
+
+class IssueStatusBody(BaseModel):
+    status: Literal["Open", "Work in Progress", "Completed"]
 
 
 def _runtime_error_status(message: str, firebase: bool = False) -> int:
@@ -155,6 +173,11 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Description is required")
 
     try:
+        normalized_phone = parse_phone_number(body.phoneNumber)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
         classify_started = time.perf_counter()
         classification = await asyncio.to_thread(
             classify_issue,
@@ -185,6 +208,8 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
         "longitude": body.longitude if isinstance(body.longitude, (int, float)) else None,
         **classification,
     }
+    if normalized_phone:
+        payload["phoneNumber"] = normalized_phone
 
     try:
         save_started = time.perf_counter()
@@ -196,6 +221,16 @@ async def create_submission(body: SubmissionBody) -> dict[str, Any]:
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
+
+    submission_record = {
+        "id": result["id"],
+        **payload,
+    }
+    try:
+        issue_id = await asyncio.to_thread(assign_to_issue, submission_record)
+        logger.info("submission id=%s assigned to issue id=%s", result["id"], issue_id)
+    except RuntimeError as exc:
+        logger.warning("assign_to_issue failed for submission %s: %s", result["id"], exc)
 
     logger.info(
         "submission saved id=%s classify=%.2fs save=%.2fs",
@@ -229,19 +264,106 @@ async def get_submissions() -> list[dict[str, Any]]:
 
 @app.get("/api/submissions/themes")
 async def get_submission_themes() -> list[dict[str, Any]]:
-    """Groups real citizen submissions by similarity so multiple people
-    reporting the same/similar issue collapse into one theme with an
-    incremented voice count (issue #30), instead of each staying its own
-    permanently separate card."""
+    """Return persisted issues shaped as dashboard themes."""
     try:
-        submissions = await asyncio.to_thread(list_submissions)
+        return await asyncio.to_thread(issues_to_themes)
     except RuntimeError as exc:
         message = str(exc)
         raise HTTPException(
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
-    return group_into_themes(submissions)
+
+
+@app.get("/api/issues/{issue_id}")
+async def get_issue_endpoint(issue_id: str) -> dict[str, Any]:
+    try:
+        issue = await asyncio.to_thread(get_issue_detail, issue_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    resolved = await asyncio.to_thread(resolve_display_location, issue)
+    if resolved:
+        issue = {**issue, "locality": resolved}
+
+    return issue
+
+
+@app.get("/api/issues/{issue_id}/subscribers")
+async def get_issue_subscribers_endpoint(
+    issue_id: str,
+    _: None = Depends(require_mp_api_key),
+) -> list[dict[str, Any]]:
+    try:
+        return await asyncio.to_thread(get_subscribers, issue_id)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+
+def _notify_issue_status_subscribers(
+    issue_id: str,
+    status: str,
+    topic: str,
+) -> None:
+    phones = subscribers_for_notification(issue_id)
+    notify_issue_subscribers(
+        issue_id=issue_id,
+        status=status,
+        topic=topic,
+        phone_numbers=phones,
+    )
+    update_issue_status(issue_id, status, last_notified_status=status)
+
+
+@app.patch("/api/issues/{issue_id}/status")
+async def patch_issue_status_endpoint(
+    issue_id: str,
+    body: IssueStatusBody,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(require_mp_api_key),
+) -> dict[str, Any]:
+    try:
+        before = await asyncio.to_thread(get_issue, issue_id)
+        if not before:
+            raise HTTPException(status_code=404, detail="Issue not found")
+
+        updated = await asyncio.to_thread(patch_issue_status, issue_id, body.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+
+    last_notified = before.get("lastNotifiedStatus")
+    if body.status in NOTIFY_STATUSES and body.status != last_notified:
+        try:
+            detail = await asyncio.to_thread(get_issue_detail, issue_id)
+            topic = str(detail.get("topic") or detail.get("description") or "")
+        except LookupError:
+            topic = ""
+        background_tasks.add_task(
+            _notify_issue_status_subscribers,
+            issue_id,
+            body.status,
+            topic,
+        )
+
+    return {"ok": True, "issue": updated}
 
 
 @app.get("/api/submissions/{submission_id}")

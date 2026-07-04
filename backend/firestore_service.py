@@ -19,6 +19,13 @@ def list_submissions() -> list[dict[str, Any]]:
     return data
 
 
+def list_submissions_internal() -> list[dict[str, Any]]:
+    data = bridge_call({"action": "firestore:listInternal"})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected Firestore internal list response")
+    return data
+
+
 def get_submission_image(submission_id: str) -> str | None:
     data = bridge_call({"action": "firestore:image", "id": submission_id})
     if not isinstance(data, dict):
@@ -32,3 +39,112 @@ def get_submission(submission_id: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError("Unexpected Firestore get response")
     return data
+
+
+def list_issues_by_issue_type(issue_type: str) -> list[dict[str, Any]]:
+    data = bridge_call(
+        {"action": "issues:listByType", "payload": {"issueType": issue_type}}
+    )
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected issues listByType response")
+    return data
+
+
+def list_issues() -> list[dict[str, Any]]:
+    data = bridge_call({"action": "issues:list"})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected issues list response")
+    return data
+
+
+def count_issues() -> int:
+    data = bridge_call({"action": "issues:count"})
+    if not isinstance(data, int):
+        raise RuntimeError("Unexpected issues count response")
+    return data
+
+
+def get_issue(issue_id: str) -> dict[str, Any] | None:
+    try:
+        data = bridge_call({"action": "issues:get", "id": issue_id})
+    except RuntimeError as exc:
+        if "not found" in str(exc).lower():
+            return None
+        raise
+    if not isinstance(data, dict):
+        raise RuntimeError("Unexpected issue get response")
+    return data
+
+
+def create_issue(
+    *,
+    issue_type: str,
+    rep_description: str,
+    rep_locality: str,
+    rep_submission_id: str,
+    submission_id: str,
+    phone_number: str | None = None,
+) -> str:
+    payload: dict[str, Any] = {
+        "issueType": issue_type,
+        "repDescription": rep_description,
+        "repLocality": rep_locality,
+        "repSubmissionId": rep_submission_id,
+        "submissionId": submission_id,
+    }
+    if phone_number:
+        payload["phoneNumber"] = phone_number
+    data = bridge_call({"action": "issues:create", "payload": payload})
+    if not isinstance(data, dict) or not data.get("id"):
+        raise RuntimeError("Unexpected issue create response")
+    return str(data["id"])
+
+
+def attach_submission_to_issue(
+    issue_id: str,
+    submission_id: str,
+    *,
+    phone_number: str | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "issueId": issue_id,
+        "submissionId": submission_id,
+    }
+    if phone_number:
+        payload["phoneNumber"] = phone_number
+    bridge_call({"action": "issues:attach", "payload": payload})
+
+
+def list_issue_subscribers(issue_id: str) -> list[dict[str, Any]]:
+    data = bridge_call({"action": "issues:subscribers", "id": issue_id})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected issue subscribers response")
+    return data
+
+
+def update_issue_status(
+    issue_id: str,
+    status: str,
+    *,
+    last_notified_status: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"status": status}
+    if last_notified_status is not None:
+        payload["lastNotifiedStatus"] = last_notified_status
+    data = bridge_call(
+        {
+            "action": "issues:updateStatus",
+            "id": issue_id,
+            "payload": payload,
+        }
+    )
+    if not isinstance(data, dict):
+        raise RuntimeError("Unexpected issue updateStatus response")
+    return data
+
+
+def migrate_create_issue(group: dict[str, Any]) -> str:
+    data = bridge_call({"action": "issues:migrateCreate", "payload": group})
+    if not isinstance(data, dict) or not data.get("id"):
+        raise RuntimeError("Unexpected migrate create response")
+    return str(data["id"])
