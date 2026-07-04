@@ -132,6 +132,125 @@ def default_classification() -> dict[str, Any]:
     return _normalize_result({})
 
 
+TITLE_PROMPT = """You write short, clear issue headlines for a Member of Parliament's civic dashboard.
+
+A citizen has reported a problem. Their own wording may be rough, incomplete, or misleading.
+Read the citizen's topic and description carefully and write ONE concise headline (4 to 9 words)
+that captures what the issue is ACTUALLY about — the real underlying problem, not just keywords.
+
+Rules:
+- Base it strictly on the citizen's topic and description. Do NOT invent facts.
+- Do not be misled by surface words. Example: "no water — somebody building an illegal well without permit"
+  is about UNAUTHORIZED WELL CONSTRUCTION, not a water shortage.
+- Neutral, factual, title-case-ish. No quotes, no trailing period, no emojis.
+
+Return ONLY JSON: {"title": "<headline>"}"""
+
+TITLE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"title": {"type": "string"}},
+    "required": ["title"],
+}
+
+
+def _fallback_title(topic: str, description: str) -> str:
+    base = (topic or "").strip() or (description or "").strip()
+    base = " ".join(base.split())
+    if len(base) > 80:
+        base = base[:77].rstrip() + "…"
+    return base or "Citizen issue"
+
+
+def generate_issue_title(topic: str, description: str) -> str:
+    """AI-clean a short issue headline from the citizen's topic + description.
+
+    Never raises — falls back to trimmed citizen text if the model is
+    unavailable, so issue creation is never blocked on this.
+    """
+    topic = (topic or "").strip()
+    description = (description or "").strip()
+    if not topic and not description:
+        return "Citizen issue"
+
+    try:
+        client = _get_client()
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                TITLE_PROMPT,
+                f"Citizen topic: {topic or '(none)'}\nCitizen description: {description or '(none)'}",
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_json_schema=TITLE_SCHEMA,
+                temperature=0.3,
+            ),
+        )
+        text = (response.text or "").strip()
+        if not text:
+            return _fallback_title(topic, description)
+        parsed = json.loads(text)
+        title = str(parsed.get("title", "")).strip() if isinstance(parsed, dict) else ""
+        title = title.strip().strip('"').strip()
+        return title or _fallback_title(topic, description)
+    except Exception:
+        return _fallback_title(topic, description)
+
+
+def confirm_same_issue(
+    *,
+    topic_a: str,
+    description_a: str,
+    topic_b: str,
+    description_b: str,
+) -> bool:
+    """Ask Gemini whether two citizen reports describe the same underlying problem."""
+    topic_a = (topic_a or "").strip()
+    description_a = (description_a or "").strip()
+    topic_b = (topic_b or "").strip()
+    description_b = (description_b or "").strip()
+
+    prompt = """You decide whether two citizen civic complaints are about the SAME underlying real-world problem.
+
+Return ONLY JSON: {"sameIssue": true} or {"sameIssue": false}
+
+Rules:
+- Same specific problem at the same place → true (e.g. both about the same broken school wall).
+- Same broad category but different problems → false (e.g. potholes vs fallen tree vs illegal well).
+- Similar words ("broken road" vs "broken wall") are DIFFERENT issues unless clearly the same incident.
+- When unsure, return false — it is better to keep issues separate."""
+
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {"sameIssue": {"type": "boolean"}},
+        "required": ["sameIssue"],
+    }
+
+    user = f"""Report A
+Topic: {topic_a or "(none)"}
+Description: {description_a or "(none)"}
+
+Report B
+Topic: {topic_b or "(none)"}
+Description: {description_b or "(none)"}"""
+
+    client = _get_client()
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[prompt, user],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_json_schema=schema,
+            temperature=0.1,
+        ),
+    )
+    text = (response.text or "").strip()
+    if not text:
+        return False
+    parsed = json.loads(text)
+    return bool(parsed.get("sameIssue")) if isinstance(parsed, dict) else False
+
+
 def classify_issue(image_base64: str, description: str) -> dict[str, Any]:
     """Classify a civic issue using Gemini multimodal input."""
     if not description or not description.strip():

@@ -9,6 +9,21 @@ export interface ClusterStats {
   published: number;
 }
 
+export async function fetchShowcase(): Promise<{
+  items: Cluster[];
+  publishedCount: number;
+}> {
+  try {
+    const res = await fetchWithTimeout("/api/showcase", { cache: "no-store" });
+    if (!res.ok) throw new Error(`Failed to fetch showcase (${res.status})`);
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? (data.items as Cluster[]) : [];
+    return { items, publishedCount: items.length };
+  } catch {
+    return { items: [], publishedCount: 0 };
+  }
+}
+
 export async function fetchClusters(): Promise<{
   clusters: Cluster[];
   stats: ClusterStats | null;

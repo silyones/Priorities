@@ -8,14 +8,17 @@ import { getFirestoreDb } from "./firebase";
 export type IssueRecord = {
   id: string;
   issueType: string;
+  repTopic: string;
   repDescription: string;
   repLocality: string;
   repSubmissionId: string;
+  aiTitle: string | null;
   status: string;
   submissionIds: string[];
   subscriberCount: number;
   lastNotifiedStatus: string | null;
   createdAt: string | null;
+  completedAt: string | null;
 };
 
 export type SubscriberRecord = {
@@ -42,9 +45,11 @@ function serializeIssue(docSnap: QueryDocumentSnapshot<DocumentData>): IssueReco
   return {
     id: docSnap.id,
     issueType: data.issueType ?? "",
+    repTopic: data.repTopic ?? "",
     repDescription: data.repDescription ?? "",
     repLocality: data.repLocality ?? "",
     repSubmissionId: data.repSubmissionId ?? "",
+    aiTitle: typeof data.aiTitle === "string" && data.aiTitle.trim() ? data.aiTitle : null,
     status: data.status ?? "Open",
     submissionIds: Array.isArray(data.submissionIds)
       ? data.submissionIds.map(String)
@@ -54,6 +59,7 @@ function serializeIssue(docSnap: QueryDocumentSnapshot<DocumentData>): IssueReco
     lastNotifiedStatus:
       typeof data.lastNotifiedStatus === "string" ? data.lastNotifiedStatus : null,
     createdAt: serializeTimestamp(data.createdAt),
+    completedAt: serializeTimestamp(data.completedAt),
   };
 }
 
@@ -81,11 +87,13 @@ export async function getIssueById(id: string): Promise<IssueRecord | null> {
 
 export async function createIssue(input: {
   issueType: string;
+  repTopic: string;
   repDescription: string;
   repLocality: string;
   repSubmissionId: string;
   submissionId: string;
   phoneNumber?: string;
+  aiTitle?: string;
 }): Promise<{ id: string; newSubscriber: boolean }> {
   const db = getFirestoreDb();
   const issueRef = db.collection("issues").doc();
@@ -97,9 +105,11 @@ export async function createIssue(input: {
 
   await issueRef.set({
     issueType: input.issueType,
+    repTopic: input.repTopic,
     repDescription: input.repDescription,
     repLocality: input.repLocality,
     repSubmissionId: input.repSubmissionId,
+    aiTitle: input.aiTitle ?? null,
     status: "Open",
     submissionIds: [input.submissionId],
     subscriberCount: newSubscriber ? 1 : 0,
@@ -175,6 +185,11 @@ export async function updateIssueStatus(input: {
   const db = getFirestoreDb();
   const issueRef = db.collection("issues").doc(input.issueId);
   const update: Record<string, unknown> = { status: input.status };
+  if (input.status === "Completed") {
+    update.completedAt = FieldValue.serverTimestamp();
+  } else {
+    update.completedAt = null;
+  }
   if (input.lastNotifiedStatus !== undefined) {
     update.lastNotifiedStatus = input.lastNotifiedStatus;
   }
@@ -187,11 +202,13 @@ export async function updateIssueStatus(input: {
 /** One-time migration helper — creates issue + optional subscriber docs. */
 export async function createIssueFromGroup(input: {
   issueType: string;
+  repTopic: string;
   repDescription: string;
   repLocality: string;
   repSubmissionId: string;
   submissionIds: string[];
   phoneNumbers: string[];
+  aiTitle?: string;
 }): Promise<string> {
   const db = getFirestoreDb();
   const issueRef = db.collection("issues").doc();
@@ -199,9 +216,11 @@ export async function createIssueFromGroup(input: {
 
   await issueRef.set({
     issueType: input.issueType,
+    repTopic: input.repTopic,
     repDescription: input.repDescription,
     repLocality: input.repLocality,
     repSubmissionId: input.repSubmissionId,
+    aiTitle: input.aiTitle ?? null,
     status: "Open",
     submissionIds: input.submissionIds,
     subscriberCount: uniquePhones.length,

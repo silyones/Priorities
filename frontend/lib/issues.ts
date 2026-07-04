@@ -2,11 +2,19 @@ import { fetchWithTimeout } from "@/lib/api";
 
 export type PersistedIssueStatus = "Open" | "Work in Progress" | "Completed";
 
+export interface IssueVoice {
+  id: string;
+  topic: string;
+  description: string;
+}
+
 export interface IssueDetail {
   id: string;
   repSubmissionId: string;
+  aiTitle: string;
   topic: string;
   description: string;
+  voices: IssueVoice[];
   issueType: string;
   severity: string;
   locality: string;

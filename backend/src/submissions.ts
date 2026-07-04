@@ -19,8 +19,11 @@ export type SubmissionPayload = {
 
 export async function saveSubmissionToFirestore(payload: SubmissionPayload) {
   const db = getFirestoreDb();
+  const hasImage =
+    typeof payload.imageBase64 === "string" && payload.imageBase64.trim().length > 0;
   const docRef = await db.collection("submissions").add({
     ...payload,
+    hasImage,
     createdAt: FieldValue.serverTimestamp(),
   });
   return { id: docRef.id };

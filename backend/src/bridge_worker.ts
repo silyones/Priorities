@@ -81,6 +81,13 @@ async function handleRequest(request: BridgeRequest) {
       const result = await listIssues();
       return { ok: true, result };
     }
+    case "themes:listSource": {
+      const [issues, submissions] = await Promise.all([
+        listIssues(),
+        listSubmissions(),
+      ]);
+      return { ok: true, result: { issues, submissions } };
+    }
     case "issues:count": {
       const result = await countIssues();
       return { ok: true, result };
@@ -96,6 +103,7 @@ async function handleRequest(request: BridgeRequest) {
       const payload = request.payload ?? {};
       const result = await createIssue({
         issueType: String(payload.issueType ?? ""),
+        repTopic: String(payload.repTopic ?? ""),
         repDescription: String(payload.repDescription ?? ""),
         repLocality: String(payload.repLocality ?? ""),
         repSubmissionId: String(payload.repSubmissionId ?? ""),
@@ -103,6 +111,10 @@ async function handleRequest(request: BridgeRequest) {
         phoneNumber:
           typeof payload.phoneNumber === "string" && payload.phoneNumber.trim()
             ? payload.phoneNumber.trim()
+            : undefined,
+        aiTitle:
+          typeof payload.aiTitle === "string" && payload.aiTitle.trim()
+            ? payload.aiTitle.trim()
             : undefined,
       });
       return { ok: true, result };
@@ -150,6 +162,7 @@ async function handleRequest(request: BridgeRequest) {
       const payload = request.payload ?? {};
       const id = await createIssueFromGroup({
         issueType: String(payload.issueType ?? ""),
+        repTopic: String(payload.repTopic ?? ""),
         repDescription: String(payload.repDescription ?? ""),
         repLocality: String(payload.repLocality ?? ""),
         repSubmissionId: String(payload.repSubmissionId ?? ""),
@@ -159,6 +172,10 @@ async function handleRequest(request: BridgeRequest) {
         phoneNumbers: Array.isArray(payload.phoneNumbers)
           ? payload.phoneNumbers.map(String)
           : [],
+        aiTitle:
+          typeof payload.aiTitle === "string" && payload.aiTitle.trim()
+            ? payload.aiTitle.trim()
+            : undefined,
       });
       return { ok: true, result: { id } };
     }

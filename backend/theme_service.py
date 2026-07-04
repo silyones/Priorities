@@ -24,7 +24,11 @@ STOP_WORDS = {
 # block, covering the Hindi text this app also handles.
 _NON_WORD_RE = re.compile(r"[^a-zऀ-ॿ\s]")
 
-SIMILARITY_THRESHOLD = 0.18
+SIMILARITY_THRESHOLD = 0.42
+# Lexical scores at or above this merge without an extra AI check.
+HIGH_CONFIDENCE_THRESHOLD = 0.58
+# Scores below this never merge.
+MIN_CANDIDATE_THRESHOLD = 0.30
 SEVERITY_RANK = {"Safety risk": 2, "High priority": 1, "Normal": 0}
 
 
@@ -39,24 +43,86 @@ def cosine_similarity(a: dict[str, int], b: dict[str, int]) -> float:
 
 def submission_match_score(
     *,
+    topic: str,
     description: str,
     locality: str,
     issue_type: str,
+    rep_topic: str,
     rep_description: str,
     rep_locality: str,
     rep_issue_type: str,
 ) -> float:
-    """Same cosine + locality boost used when grouping themes."""
+    """Score how likely two citizen reports are the same underlying issue.
+
+    Topic (citizen heading) is weighted heavily — same neighbourhood often has
+    many different problems, so locality must not force a merge on its own.
+    """
     if (issue_type or "") != (rep_issue_type or ""):
         return 0.0
-    vec = _embed(description or "")
-    rep_vec = _embed(rep_description or "")
-    similarity = _cosine(vec, rep_vec)
+
+    topic_a = (topic or "").strip()
+    topic_b = (rep_topic or "").strip()
+    topic_sim = _cosine(_embed(topic_a), _embed(topic_b))
+
+    # Different headings with almost no overlap → not the same issue.
+    if topic_a and topic_b and topic_sim < 0.22:
+        return 0.0
+
+    new_text = f"{topic_a} {description or ''}".strip()
+    rep_text = f"{topic_b} {rep_description or ''}".strip()
+    text_sim = _cosine(_embed(new_text), _embed(rep_text))
+
+    score = 0.62 * topic_sim + 0.38 * text_sim
+
+    # Tiny locality nudge only when the text already looks related.
     loc = (locality or "").strip().lower()
     rep_loc = (rep_locality or "").strip().lower()
-    if loc and loc == rep_loc:
-        similarity += 0.25
-    return similarity
+    if score >= 0.28 and loc and loc == rep_loc:
+        score += 0.04
+
+    return min(score, 1.0)
+
+
+def should_merge_submissions(
+    *,
+    topic: str,
+    description: str,
+    locality: str,
+    issue_type: str,
+    rep_topic: str,
+    rep_description: str,
+    rep_locality: str,
+    rep_issue_type: str,
+) -> bool:
+    """Whether a new submission belongs on an existing issue."""
+    score = submission_match_score(
+        topic=topic,
+        description=description,
+        locality=locality,
+        issue_type=issue_type,
+        rep_topic=rep_topic,
+        rep_description=rep_description,
+        rep_locality=rep_locality,
+        rep_issue_type=rep_issue_type,
+    )
+    if score < MIN_CANDIDATE_THRESHOLD:
+        return False
+    if score >= HIGH_CONFIDENCE_THRESHOLD:
+        return True
+    if score < SIMILARITY_THRESHOLD:
+        return False
+
+    try:
+        from gemini_service import confirm_same_issue
+
+        return confirm_same_issue(
+            topic_a=topic,
+            description_a=description,
+            topic_b=rep_topic,
+            description_b=rep_description,
+        )
+    except Exception:
+        return False
 
 
 def pick_representative(members: list[dict[str, Any]]) -> dict[str, Any]:
@@ -85,44 +151,59 @@ def _cosine(a: dict[str, int], b: dict[str, int]) -> float:
 
 
 class _Group:
-    __slots__ = ("members", "corpus")
+    __slots__ = ("members",)
 
     def __init__(self, submission: dict[str, Any]) -> None:
         self.members: list[dict[str, Any]] = [submission]
-        self.corpus: dict[str, int] = _embed(submission.get("description") or "")
 
     def add(self, submission: dict[str, Any]) -> None:
         self.members.append(submission)
-        for word, count in _embed(submission.get("description") or "").items():
-            self.corpus[word] = self.corpus.get(word, 0) + count
 
 
 def group_submissions(submissions: list[dict[str, Any]]) -> list[_Group]:
-    """Cluster submissions — returns raw groups (used by migration + themes)."""
+    """Cluster submissions — compare each report only to the group representative."""
     groups: list[_Group] = []
 
     for submission in submissions:
-        vec = _embed(submission.get("description") or "")
         issue_type = submission.get("issueType") or ""
-        locality = (submission.get("locality") or "").strip().lower()
+        topic = str(submission.get("topic") or "")
+        description = str(submission.get("description") or "")
+        locality = str(submission.get("locality") or "")
 
         best_group: _Group | None = None
         best_similarity = 0.0
         for group in groups:
-            representative = group.members[0]
-            if (representative.get("issueType") or "") != issue_type:
-                continue
-            similarity = _cosine(vec, group.corpus)
-            if locality and locality == (representative.get("locality") or "").strip().lower():
-                similarity += 0.25
+            representative = pick_representative(group.members)
+            similarity = submission_match_score(
+                topic=topic,
+                description=description,
+                locality=locality,
+                issue_type=issue_type,
+                rep_topic=str(representative.get("topic") or ""),
+                rep_description=str(representative.get("description") or ""),
+                rep_locality=str(representative.get("locality") or ""),
+                rep_issue_type=str(representative.get("issueType") or ""),
+            )
             if similarity > best_similarity:
                 best_similarity = similarity
                 best_group = group
 
-        if best_group is not None and best_similarity >= SIMILARITY_THRESHOLD:
-            best_group.add(submission)
-        else:
-            groups.append(_Group(submission))
+        if best_group is not None:
+            representative = pick_representative(best_group.members)
+            if should_merge_submissions(
+                topic=topic,
+                description=description,
+                locality=locality,
+                issue_type=issue_type,
+                rep_topic=str(representative.get("topic") or ""),
+                rep_description=str(representative.get("description") or ""),
+                rep_locality=str(representative.get("locality") or ""),
+                rep_issue_type=str(representative.get("issueType") or ""),
+            ):
+                best_group.add(submission)
+                continue
+
+        groups.append(_Group(submission))
 
     return groups
 
@@ -168,6 +249,7 @@ def build_theme_from_members(
     rep_submission_id: str,
     issue_status: str = "Open",
     subscriber_count: int = 0,
+    completed_at: str | None = None,
 ) -> dict[str, Any]:
     """Build the API theme shape from persisted issue metadata + member submissions."""
     if not members:
@@ -192,6 +274,7 @@ def build_theme_from_members(
         "affected": len(members),
         "subscriberCount": subscriber_count,
         "issueStatus": issue_status,
+        "completedAt": completed_at,
         "relayShare": relay_count / len(members) if members else 0,
         "sampleQuotes": [m.get("description") or "" for m in members[:5]],
         "createdAt": max((m.get("createdAt") or "" for m in members), default=None) or None,

@@ -7,12 +7,16 @@ const backendUrl =
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
+    // fallback (not afterFiles) so App Router route handlers under
+    // app/api/issues/... win first and can attach X-MP-API-Key server-side.
+    return {
+      fallback: [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 

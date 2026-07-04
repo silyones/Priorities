@@ -36,10 +36,16 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
 
 SYSTEM_PROMPT = """You are an assistant to a Member of Parliament in Bengaluru North constituency.
 
-Given a citizen's civic complaint and classification metadata, produce a concise issue brief for the MP office.
+Given a citizen's civic complaint, produce a concise issue brief for the MP office.
+
+CRITICAL: Base your understanding on the citizen's own TOPIC and DESCRIPTION — that is the source of truth
+for what the problem actually is. The classification fields (issueType, aiTags) are rough auto-labels and
+may be WRONG or misleading; treat them as weak hints only, never as the definition of the problem.
+Example: a report tagged "Water Supply" whose description says "somebody is building an illegal well without
+a permit" is about UNAUTHORIZED WELL CONSTRUCTION, not a water shortage — write the brief accordingly.
 
 Return ONLY valid JSON with these keys:
-- summary: 2-3 sentences — what the problem is, who is affected, and why it matters
+- summary: 2-3 sentences — what the problem actually is (per the citizen's words), who is affected, and why it matters
 - recommendation: array of 3-5 specific, actionable next steps (e.g. forward to BBMP, site visit within 48h)
 - suggestedDepartment: primary department or agency to route this to (e.g. BESCOM, BWSSB, BBMP Roads, Education Dept)
 - urgencyRationale: one sentence explaining the severity assessment
@@ -151,11 +157,12 @@ def analyze_issue(
     tags_text = ", ".join(ai_tags) if ai_tags else "none"
     photo_note = "yes — describe likely visible evidence in imageCaption" if has_image else "no"
 
-    user_content = f"""Topic: {topic.strip() or "(not provided)"}
+    user_content = f"""CITIZEN'S OWN WORDS (source of truth — base the brief on this):
+Topic: {topic.strip() or "(not provided)"}
 Description:
 {description.strip()}
 
-Classification:
+Auto-classification hints (may be inaccurate — do not let these override the citizen's words):
 - issueType: {issue_type or "unknown"}
 - severity: {severity or "Normal"}
 - aiTags: {tags_text}
