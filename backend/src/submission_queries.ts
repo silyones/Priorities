@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
+import type { DocumentData } from "firebase-admin/firestore";
 import { getFirestoreDb } from "./firebase";
 
 export type SubmissionListItem = {
@@ -33,6 +33,13 @@ export type SubmissionDetail = {
   createdAt: string | null;
 };
 
+/** Backend-only shape — includes phoneNumber for issue assignment / migration. */
+export type SubmissionInternal = SubmissionListItem & {
+  name: string;
+  role: string;
+  phoneNumber: string | null;
+};
+
 function serializeCreatedAt(value: unknown): string | null {
   if (!value) return null;
   if (
@@ -47,64 +54,72 @@ function serializeCreatedAt(value: unknown): string | null {
   return null;
 }
 
-export async function listSubmissions(): Promise<SubmissionListItem[]> {
-  const db = getFirestoreDb();
-  const q = query(collection(db, "submissions"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-
-  return snap.docs.map((docSnap) => {
-    const data = docSnap.data();
-    const imageBase64 = data.imageBase64;
-    const hasImage = typeof imageBase64 === "string" && imageBase64.trim().length > 0;
-    return {
-      id: docSnap.id,
-      topic: data.topic ?? "",
-      description: data.description ?? "",
-      issueType: data.issueType ?? "",
-      severity: data.severity ?? "",
-      locality: data.locality ?? "",
-      submittedFor: data.submittedFor ?? "",
-      aiTags: Array.isArray(data.aiTags) ? data.aiTags.map(String) : [],
-      latitude: typeof data.latitude === "number" ? data.latitude : null,
-      longitude: typeof data.longitude === "number" ? data.longitude : null,
-      hasImage,
-      createdAt: serializeCreatedAt(data.createdAt),
-    };
-  });
-}
-
-export async function getSubmissionImage(id: string): Promise<string | null> {
-  const db = getFirestoreDb();
-  const snap = await getDoc(doc(db, "submissions", id));
-  if (!snap.exists()) return null;
-
-  const imageBase64 = snap.data().imageBase64;
-  return typeof imageBase64 === "string" && imageBase64.trim() ? imageBase64 : null;
-}
-
-export async function getSubmissionById(id: string): Promise<SubmissionDetail | null> {
-  const db = getFirestoreDb();
-  const snap = await getDoc(doc(db, "submissions", id));
-  if (!snap.exists()) return null;
-
-  const data = snap.data();
+function mapSubmissionDoc(
+  id: string,
+  data: DocumentData,
+  includePhone: boolean,
+): SubmissionInternal {
   const imageBase64 = data.imageBase64;
   const hasImage = typeof imageBase64 === "string" && imageBase64.trim().length > 0;
-
+  const phoneRaw = data.phoneNumber;
   return {
-    id: snap.id,
-    submittedFor: data.submittedFor ?? "",
-    name: data.name ?? "",
-    role: data.role ?? "",
-    locality: data.locality ?? "",
+    id,
     topic: data.topic ?? "",
     description: data.description ?? "",
     issueType: data.issueType ?? "",
     severity: data.severity ?? "",
+    locality: data.locality ?? "",
+    submittedFor: data.submittedFor ?? "",
+    name: data.name ?? "",
+    role: data.role ?? "",
     aiTags: Array.isArray(data.aiTags) ? data.aiTags.map(String) : [],
     latitude: typeof data.latitude === "number" ? data.latitude : null,
     longitude: typeof data.longitude === "number" ? data.longitude : null,
     hasImage,
     createdAt: serializeCreatedAt(data.createdAt),
+    phoneNumber:
+      includePhone && typeof phoneRaw === "string" && phoneRaw.trim()
+        ? phoneRaw.trim()
+        : null,
   };
+}
+
+export async function listSubmissions(): Promise<SubmissionListItem[]> {
+  const internal = await listSubmissionsInternal();
+  return internal.map(({ phoneNumber: _phone, name: _name, role: _role, ...item }) => item);
+}
+
+export async function listSubmissionsInternal(): Promise<SubmissionInternal[]> {
+  const db = getFirestoreDb();
+  const snap = await db.collection("submissions").orderBy("createdAt", "desc").get();
+
+  return snap.docs.map((docSnap) =>
+    mapSubmissionDoc(docSnap.id, docSnap.data(), true),
+  );
+}
+
+export async function getSubmissionImage(id: string): Promise<string | null> {
+  const db = getFirestoreDb();
+  const snap = await db.collection("submissions").doc(id).get();
+  if (!snap.exists) return null;
+
+  const imageBase64 = snap.data()?.imageBase64;
+  return typeof imageBase64 === "string" && imageBase64.trim() ? imageBase64 : null;
+}
+
+export async function getSubmissionById(id: string): Promise<SubmissionDetail | null> {
+  const db = getFirestoreDb();
+  const snap = await db.collection("submissions").doc(id).get();
+  if (!snap.exists) return null;
+
+  const mapped = mapSubmissionDoc(snap.id, snap.data()!, false);
+  const { phoneNumber: _phone, ...detail } = mapped;
+  return detail;
+}
+
+export async function getSubmissionByIdInternal(id: string): Promise<SubmissionInternal | null> {
+  const db = getFirestoreDb();
+  const snap = await db.collection("submissions").doc(id).get();
+  if (!snap.exists) return null;
+  return mapSubmissionDoc(snap.id, snap.data()!, true);
 }

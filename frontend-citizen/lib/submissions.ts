@@ -17,6 +17,7 @@ export type SubmissionPayload = {
   audioBase64: string;
   latitude: number | null;
   longitude: number | null;
+  phoneNumber?: string;
 };
 
 export async function saveSubmission(payload: SubmissionPayload): Promise<void> {

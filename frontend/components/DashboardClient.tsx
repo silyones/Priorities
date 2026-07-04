@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import type { Cluster } from "@/lib/types";
 import { fetchSubmissionThemes } from "@/lib/submissions";
+import { IssueStatusPill } from "@/components/IssueStatusPill";
+import { SubscriberPanel } from "@/components/SubscriberPanel";
 import { StatusDot, UrgencyTag, STATUS_META } from "@/components/ui";
 
 const up = {
@@ -126,33 +128,46 @@ export function DashboardClient() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 + i * 0.04, ease: "easeOut" }}
+                    className="px-5 py-3.5 transition-colors hover:bg-cream/60"
                   >
-                    <Link href={`/issues/${c.id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-cream/60">
+                    <div className="flex items-center gap-4">
                       <span className="w-5 font-mono text-xs text-ink-muted/60">{i + 1}</span>
-                      <StatusDot status={c.status} pulse={c.status === "new"} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                          <span className="flex items-center gap-0.5 text-xs text-ink-muted">
-                            <MapPin className="h-3 w-3" /> {c.locality}
-                          </span>
-                          <UrgencyTag urgency={c.urgency} />
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <div className="text-right">
-                          <div className="font-mono text-sm font-bold text-ink">
-                            {c.affected.toLocaleString("en-IN")}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-widest text-ink-muted">
-                            {c.affected === 1 ? "voice" : "voices"}
+                      <Link href={`/issues/${c.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                        <StatusDot status={c.status} pulse={c.status === "new"} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-ink">{c.title}</div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                            <span className="flex items-center gap-0.5 text-xs text-ink-muted">
+                              <MapPin className="h-3 w-3" /> {c.locality}
+                            </span>
+                            <UrgencyTag urgency={c.urgency} />
+                            {c.issueStatus && <IssueStatusPill status={c.issueStatus} />}
                           </div>
                         </div>
-                        <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
-                          {c.score}
+                        <div className="flex shrink-0 items-center gap-3">
+                          <div className="text-right">
+                            <div className="font-mono text-sm font-bold text-ink">
+                              {c.affected.toLocaleString("en-IN")}
+                            </div>
+                            <div className="text-[9px] uppercase tracking-widest text-ink-muted">
+                              {c.affected === 1 ? "voice" : "voices"}
+                            </div>
+                          </div>
+                          <div className="w-8 rounded-lg bg-tag-orange-bg py-0.5 text-center font-mono text-sm font-bold text-tag-orange-text">
+                            {c.score}
+                          </div>
                         </div>
+                      </Link>
+                    </div>
+                    {c.isLiveSubmission && (c.subscriberCount ?? 0) >= 0 && (
+                      <div className="ml-9 mt-2 max-w-md">
+                        <SubscriberPanel
+                          issueId={c.id}
+                          subscriberCount={c.subscriberCount ?? 0}
+                          compact
+                        />
                       </div>
-                    </Link>
+                    )}
                   </motion.div>
                 ))
               )}

@@ -1,8 +1,7 @@
 node_modules/
-
 dist/
-
 *.tsbuildinfo
-
 .env
 __pycache__/
+secrets/
+*-firebase-adminsdk*.json

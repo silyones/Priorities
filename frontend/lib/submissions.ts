@@ -281,6 +281,9 @@ export interface ThemeApiResponse extends ApiSubmission {
   affected: number;
   relayShare: number;
   sampleQuotes: string[];
+  issueStatus?: string;
+  subscriberCount?: number;
+  repSubmissionId?: string;
 }
 
 export function themeFromApi(theme: ThemeApiResponse): Cluster {
@@ -291,6 +294,9 @@ export function themeFromApi(theme: ThemeApiResponse): Cluster {
     affected: theme.affected,
     relayShare: theme.relayShare,
     sampleQuotes: theme.sampleQuotes.length ? theme.sampleQuotes : cluster.sampleQuotes,
+    issueStatus: theme.issueStatus,
+    subscriberCount: theme.subscriberCount ?? 0,
+    repSubmissionId: theme.repSubmissionId,
     score: calculateThemeScore({
       urgency: cluster.urgency,
       voiceCount: theme.affected,

@@ -19,11 +19,19 @@ import {
 } from "lucide-react";
 import {
   fetchSubmissionAnalysis,
-  fetchSubmissionDetail,
   fetchSubmissionImage,
   type SubmissionAnalysis,
   type SubmissionDetail,
 } from "@/lib/submissions";
+import {
+  fetchIssueDetail,
+  ISSUE_STATUS_OPTIONS,
+  patchIssueStatus,
+  type IssueDetail,
+  type PersistedIssueStatus,
+} from "@/lib/issues";
+import { IssueStatusPill } from "@/components/IssueStatusPill";
+import { SubscriberPanel } from "@/components/SubscriberPanel";
 import { CategoryBadge, UrgencyTag } from "@/components/ui";
 import type { Category, Urgency } from "@/lib/types";
 
@@ -68,18 +76,20 @@ function formatDate(iso: string | null): string {
 export function IssueBriefClient({ submissionId: submissionIdProp }: { submissionId?: string }) {
   const params = useParams();
   const routeId = typeof params?.id === "string" ? params.id : "";
-  const submissionId = submissionIdProp || routeId;
+  const issueId = submissionIdProp || routeId;
 
-  const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
+  const [issue, setIssue] = useState<IssueDetail | null>(null);
   const [analysis, setAnalysis] = useState<SubmissionAnalysis | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
   useEffect(() => {
-    if (!submissionId) {
+    if (!issueId) {
       setLoadError("Invalid issue link");
       setLoadingDetail(false);
       setLoadingAnalysis(false);
@@ -92,7 +102,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
       setLoadingDetail(true);
       setLoadError(null);
 
-      const detailResult = await fetchSubmissionDetail(submissionId);
+      const detailResult = await fetchIssueDetail(issueId);
       if (cancelled) return;
 
       if (!detailResult.ok) {
@@ -102,17 +112,35 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
         return;
       }
 
-      setSubmission(detailResult.submission);
+      setIssue(detailResult.issue);
       setLoadingDetail(false);
 
-      if (detailResult.submission.hasImage) {
-        const imageResult = await fetchSubmissionImage(submissionId);
+      const repId = detailResult.issue.repSubmissionId;
+      if (detailResult.issue.hasImage && repId) {
+        const imageResult = await fetchSubmissionImage(repId);
         if (!cancelled && imageResult.ok) {
           setImageSrc(formatImageSrc(imageResult.imageBase64));
         }
       }
 
-      const analysisResult = await fetchSubmissionAnalysis(detailResult.submission);
+      const analysisSubmission: SubmissionDetail = {
+        id: repId,
+        topic: detailResult.issue.topic,
+        description: detailResult.issue.description,
+        issueType: detailResult.issue.issueType,
+        severity: detailResult.issue.severity,
+        locality: detailResult.issue.locality,
+        submittedFor: detailResult.issue.submittedFor,
+        name: detailResult.issue.name,
+        role: detailResult.issue.role,
+        aiTags: detailResult.issue.aiTags,
+        latitude: detailResult.issue.latitude,
+        longitude: detailResult.issue.longitude,
+        hasImage: detailResult.issue.hasImage,
+        createdAt: detailResult.issue.createdAt,
+      };
+
+      const analysisResult = await fetchSubmissionAnalysis(analysisSubmission);
       if (cancelled) return;
 
       if (analysisResult.ok) {
@@ -127,17 +155,30 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
     return () => {
       cancelled = true;
     };
-  }, [submissionId]);
+  }, [issueId]);
+
+  async function handleStatusChange(next: PersistedIssueStatus) {
+    if (!issue) return;
+    setStatusSaving(true);
+    setStatusError(null);
+    const result = await patchIssueStatus(issue.id, next);
+    setStatusSaving(false);
+    if (result.ok) {
+      setIssue({ ...issue, issueStatus: next });
+    } else {
+      setStatusError(result.error);
+    }
+  }
 
   const title = useMemo(() => {
-    if (!submission) return "Issue brief";
-    return submission.topic?.trim() || submission.description?.trim().slice(0, 80) || "Untitled issue";
-  }, [submission]);
+    if (!issue) return "Issue brief";
+    return issue.topic?.trim() || issue.description?.trim().slice(0, 80) || "Untitled issue";
+  }, [issue]);
 
   const mapsUrl = useMemo(() => {
-    if (!submission?.latitude || !submission?.longitude) return null;
-    return `https://www.google.com/maps?q=${submission.latitude},${submission.longitude}`;
-  }, [submission]);
+    if (!issue?.latitude || !issue?.longitude) return null;
+    return `https://www.google.com/maps?q=${issue.latitude},${issue.longitude}`;
+  }, [issue]);
 
   if (loadingDetail) {
     return (
@@ -150,7 +191,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
     );
   }
 
-  if (loadError || !submission) {
+  if (loadError || !issue) {
     return (
       <div className="min-h-screen bg-cream px-5 py-10 sm:px-8">
         <div className="mx-auto max-w-2xl">
@@ -173,8 +214,8 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
     );
   }
 
-  const urgency = severityToUrgency(submission.severity);
-  const category = issueTypeToCategory(submission.issueType);
+  const urgency = severityToUrgency(issue.severity);
+  const category = issueTypeToCategory(issue.issueType);
 
   return (
     <motion.div
@@ -197,7 +238,13 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <CategoryBadge category={category} />
             <UrgencyTag urgency={urgency} />
-            {submission.aiTags.slice(0, 4).map((tag) => (
+            <IssueStatusPill status={issue.issueStatus} />
+            {issue.affected > 1 && (
+              <span className="text-xs font-medium text-ink-muted">
+                {issue.affected} voices
+              </span>
+            )}
+            {issue.aiTags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
                 className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface-white px-2.5 py-0.5 text-[11px] font-medium text-ink-muted"
@@ -263,11 +310,11 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
                 <Quote className="h-4 w-4 text-ink-muted" />
                 Citizen&apos;s words
               </div>
-              {submission.topic?.trim() && (
-                <p className="mt-3 text-base font-semibold text-ink">{submission.topic}</p>
+              {issue.topic?.trim() && (
+                <p className="mt-3 text-base font-semibold text-ink">{issue.topic}</p>
               )}
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">
-                {submission.description}
+                {issue.description}
               </p>
             </div>
           </div>
@@ -293,6 +340,46 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
 
             <div className="card p-5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-ink-muted">
+                MP office status
+              </h3>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <IssueStatusPill status={issue.issueStatus} />
+                <select
+                  value=""
+                  disabled={statusSaving}
+                  onChange={(e) => {
+                    const value = e.target.value as PersistedIssueStatus;
+                    if (value) void handleStatusChange(value);
+                    e.target.value = "";
+                  }}
+                  className="rounded-xl border border-border-subtle bg-cream px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:opacity-50"
+                >
+                  <option value="">Set status…</option>
+                  {ISSUE_STATUS_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {statusSaving && (
+                  <Loader2 className="h-4 w-4 animate-spin text-ink-muted" />
+                )}
+              </div>
+              {statusError && (
+                <p className="mt-2 text-xs text-tag-red-text">{statusError}</p>
+              )}
+              <p className="mt-2 text-xs text-ink-muted">
+                Subscribers are notified by SMS when status moves to Work in Progress or Completed.
+              </p>
+            </div>
+
+            <SubscriberPanel
+              issueId={issue.id}
+              subscriberCount={issue.subscriberCount}
+            />
+
+            <div className="card p-5">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-ink-muted">
                 Issue at a glance
               </h3>
               <dl className="mt-4 space-y-3 text-sm">
@@ -301,7 +388,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
                   <div>
                     <dt className="text-xs text-ink-muted">Location</dt>
                     <dd className="font-medium text-ink">
-                      {submission.locality?.trim() || "Location not provided"}
+                      {issue.locality?.trim() || "Location not provided"}
                     </dd>
                     {mapsUrl && (
                       <a
@@ -330,7 +417,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
                   <div>
                     <dt className="text-xs text-ink-muted">Submitted for</dt>
                     <dd className="font-medium text-ink">
-                      {submission.submittedFor === "someone_else"
+                      {issue.submittedFor === "someone_else"
                         ? "Someone else (relay)"
                         : "Themselves"}
                     </dd>
@@ -340,7 +427,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
                   <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" />
                   <div>
                     <dt className="text-xs text-ink-muted">Received</dt>
-                    <dd className="font-medium text-ink">{formatDate(submission.createdAt)}</dd>
+                    <dd className="font-medium text-ink">{formatDate(issue.createdAt)}</dd>
                   </div>
                 </div>
               </dl>

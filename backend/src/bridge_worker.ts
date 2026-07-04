@@ -9,7 +9,19 @@ import {
   getSubmissionById,
   getSubmissionImage,
   listSubmissions,
+  listSubmissionsInternal,
 } from "./submission_queries";
+import {
+  attachSubmissionToIssue,
+  countIssues,
+  createIssue,
+  createIssueFromGroup,
+  getIssueById,
+  listIssueSubscribers,
+  listIssues,
+  listIssuesByIssueType,
+  updateIssueStatus,
+} from "./issue_queries";
 import { actOnCluster, getClusters, getShowcase, getStats, submit } from "./store";
 
 type BridgeRequest = {
@@ -52,6 +64,103 @@ async function handleRequest(request: BridgeRequest) {
       const submission = await getSubmissionById(id);
       if (!submission) throw new Error("Submission not found");
       return { ok: true, result: submission };
+    }
+    case "firestore:listInternal": {
+      const result = await listSubmissionsInternal();
+      return { ok: true, result };
+    }
+    case "issues:listByType": {
+      const issueType =
+        typeof request.payload?.issueType === "string"
+          ? request.payload.issueType
+          : "";
+      const result = await listIssuesByIssueType(issueType);
+      return { ok: true, result };
+    }
+    case "issues:list": {
+      const result = await listIssues();
+      return { ok: true, result };
+    }
+    case "issues:count": {
+      const result = await countIssues();
+      return { ok: true, result };
+    }
+    case "issues:get": {
+      const id = request.id?.trim();
+      if (!id) throw new Error("Issue id is required");
+      const issue = await getIssueById(id);
+      if (!issue) throw new Error("Issue not found");
+      return { ok: true, result: issue };
+    }
+    case "issues:create": {
+      const payload = request.payload ?? {};
+      const result = await createIssue({
+        issueType: String(payload.issueType ?? ""),
+        repDescription: String(payload.repDescription ?? ""),
+        repLocality: String(payload.repLocality ?? ""),
+        repSubmissionId: String(payload.repSubmissionId ?? ""),
+        submissionId: String(payload.submissionId ?? ""),
+        phoneNumber:
+          typeof payload.phoneNumber === "string" && payload.phoneNumber.trim()
+            ? payload.phoneNumber.trim()
+            : undefined,
+      });
+      return { ok: true, result };
+    }
+    case "issues:attach": {
+      const payload = request.payload ?? {};
+      const issueId = String(payload.issueId ?? "").trim();
+      const submissionId = String(payload.submissionId ?? "").trim();
+      if (!issueId || !submissionId) throw new Error("issueId and submissionId are required");
+      const result = await attachSubmissionToIssue({
+        issueId,
+        submissionId,
+        phoneNumber:
+          typeof payload.phoneNumber === "string" && payload.phoneNumber.trim()
+            ? payload.phoneNumber.trim()
+            : undefined,
+      });
+      return { ok: true, result };
+    }
+    case "issues:subscribers": {
+      const id = request.id?.trim();
+      if (!id) throw new Error("Issue id is required");
+      const result = await listIssueSubscribers(id);
+      return { ok: true, result };
+    }
+    case "issues:updateStatus": {
+      const id = request.id?.trim();
+      if (!id) throw new Error("Issue id is required");
+      const payload = request.payload ?? {};
+      const status = String(payload.status ?? "").trim();
+      if (!status) throw new Error("status is required");
+      const result = await updateIssueStatus({
+        issueId: id,
+        status,
+        lastNotifiedStatus:
+          payload.lastNotifiedStatus === null
+            ? null
+            : typeof payload.lastNotifiedStatus === "string"
+              ? payload.lastNotifiedStatus
+              : undefined,
+      });
+      return { ok: true, result };
+    }
+    case "issues:migrateCreate": {
+      const payload = request.payload ?? {};
+      const id = await createIssueFromGroup({
+        issueType: String(payload.issueType ?? ""),
+        repDescription: String(payload.repDescription ?? ""),
+        repLocality: String(payload.repLocality ?? ""),
+        repSubmissionId: String(payload.repSubmissionId ?? ""),
+        submissionIds: Array.isArray(payload.submissionIds)
+          ? payload.submissionIds.map(String)
+          : [],
+        phoneNumbers: Array.isArray(payload.phoneNumbers)
+          ? payload.phoneNumbers.map(String)
+          : [],
+      });
+      return { ok: true, result: { id } };
     }
     case "store:clusters": {
       return { ok: true, result: { clusters: getClusters(), stats: getStats() } };

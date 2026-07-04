@@ -28,6 +28,43 @@ SIMILARITY_THRESHOLD = 0.18
 SEVERITY_RANK = {"Safety risk": 2, "High priority": 1, "Normal": 0}
 
 
+def embed_text(text: str) -> dict[str, int]:
+    """Public wrapper used by incremental issue matching."""
+    return _embed(text)
+
+
+def cosine_similarity(a: dict[str, int], b: dict[str, int]) -> float:
+    return _cosine(a, b)
+
+
+def submission_match_score(
+    *,
+    description: str,
+    locality: str,
+    issue_type: str,
+    rep_description: str,
+    rep_locality: str,
+    rep_issue_type: str,
+) -> float:
+    """Same cosine + locality boost used when grouping themes."""
+    if (issue_type or "") != (rep_issue_type or ""):
+        return 0.0
+    vec = _embed(description or "")
+    rep_vec = _embed(rep_description or "")
+    similarity = _cosine(vec, rep_vec)
+    loc = (locality or "").strip().lower()
+    rep_loc = (rep_locality or "").strip().lower()
+    if loc and loc == rep_loc:
+        similarity += 0.25
+    return similarity
+
+
+def pick_representative(members: list[dict[str, Any]]) -> dict[str, Any]:
+    return max(
+        members, key=lambda m: SEVERITY_RANK.get(m.get("severity") or "Normal", 0)
+    )
+
+
 def _embed(text: str) -> dict[str, int]:
     cleaned = _NON_WORD_RE.sub(" ", (text or "").lower())
     vec: dict[str, int] = {}
@@ -60,9 +97,8 @@ class _Group:
             self.corpus[word] = self.corpus.get(word, 0) + count
 
 
-def group_into_themes(submissions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Same category is a strong signal (matches cluster.ts); text similarity
-    and locality agreement refine it, same order as the legacy pipeline."""
+def group_submissions(submissions: list[dict[str, Any]]) -> list[_Group]:
+    """Cluster submissions — returns raw groups (used by migration + themes)."""
     groups: list[_Group] = []
 
     for submission in submissions:
@@ -88,16 +124,18 @@ def group_into_themes(submissions: list[dict[str, Any]]) -> list[dict[str, Any]]
         else:
             groups.append(_Group(submission))
 
-    return [_build_theme(group) for group in groups]
+    return groups
+
+
+def group_into_themes(submissions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Same category is a strong signal (matches cluster.ts); text similarity
+    and locality agreement refine it, same order as the legacy pipeline."""
+    return [_build_theme(group) for group in group_submissions(submissions)]
 
 
 def _build_theme(group: _Group) -> dict[str, Any]:
     members = group.members
-    # The most severe member represents the group's title/topic/severity, so
-    # a single "safety risk" report isn't buried under milder duplicates.
-    representative = max(
-        members, key=lambda m: SEVERITY_RANK.get(m.get("severity") or "Normal", 0)
-    )
+    representative = pick_representative(members)
     relay_count = sum(1 for m in members if m.get("submittedFor") == "someone_else")
 
     # Dashboard shows the latest location citizens provided for this theme.
@@ -113,6 +151,47 @@ def _build_theme(group: _Group) -> dict[str, Any]:
         "locality": locality,
         "submittedFor": representative.get("submittedFor") or "myself",
         "affected": len(members),
+        "relayShare": relay_count / len(members) if members else 0,
+        "sampleQuotes": [m.get("description") or "" for m in members[:5]],
+        "createdAt": max((m.get("createdAt") or "" for m in members), default=None) or None,
+        "aiTags": representative.get("aiTags") or [],
+        "hasImage": any(m.get("hasImage") for m in members),
+        "latitude": location_source.get("latitude"),
+        "longitude": location_source.get("longitude"),
+    }
+
+
+def build_theme_from_members(
+    *,
+    issue_id: str,
+    members: list[dict[str, Any]],
+    rep_submission_id: str,
+    issue_status: str = "Open",
+    subscriber_count: int = 0,
+) -> dict[str, Any]:
+    """Build the API theme shape from persisted issue metadata + member submissions."""
+    if not members:
+        raise ValueError("Cannot build theme from empty member list")
+
+    by_id = {m["id"]: m for m in members if m.get("id")}
+    representative = by_id.get(rep_submission_id) or pick_representative(members)
+    relay_count = sum(1 for m in members if m.get("submittedFor") == "someone_else")
+
+    location_source = latest_submission_with_location(members) or representative
+    locality = resolve_display_location(location_source)
+
+    return {
+        "id": issue_id,
+        "repSubmissionId": rep_submission_id,
+        "topic": representative.get("topic") or "",
+        "description": representative.get("description") or "",
+        "issueType": representative.get("issueType") or "",
+        "severity": representative.get("severity") or "Normal",
+        "locality": locality,
+        "submittedFor": representative.get("submittedFor") or "myself",
+        "affected": len(members),
+        "subscriberCount": subscriber_count,
+        "issueStatus": issue_status,
         "relayShare": relay_count / len(members) if members else 0,
         "sampleQuotes": [m.get("description") or "" for m in members[:5]],
         "createdAt": max((m.get("createdAt") or "" for m in members), default=None) or None,

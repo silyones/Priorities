@@ -33,6 +33,7 @@ export type DraftFields = {
   role: string;
   locality: string;
   manualArea: string;
+  phoneNumber: string;
   // A citizen who can't type may have only this — must survive a crash or
   // closed tab the same as typed text does.
   audioBase64: string;
