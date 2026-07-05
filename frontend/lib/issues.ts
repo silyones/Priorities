@@ -81,14 +81,20 @@ export async function fetchIssueSubscribers(
 export async function patchIssueStatus(
   issueId: string,
   status: PersistedIssueStatus,
+  options?: { outcome?: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    const body: { status: PersistedIssueStatus; outcome?: string } = { status };
+    if (options?.outcome !== undefined) {
+      body.outcome = options.outcome;
+    }
+
     const res = await fetchWithTimeout(
       `/api/issues/${encodeURIComponent(issueId)}/status`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
         cache: "no-store",
       },
     );

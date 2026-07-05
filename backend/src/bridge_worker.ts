@@ -155,6 +155,12 @@ async function handleRequest(request: BridgeRequest) {
             : typeof payload.lastNotifiedStatus === "string"
               ? payload.lastNotifiedStatus
               : undefined,
+        outcome:
+          payload.outcome === null
+            ? null
+            : typeof payload.outcome === "string"
+              ? payload.outcome
+              : undefined,
       });
       return { ok: true, result };
     }

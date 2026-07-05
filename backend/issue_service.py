@@ -155,16 +155,26 @@ def completed_issues_for_showcase() -> list[dict[str, Any]]:
         if not members:
             continue
         theme = _theme_from_issue_and_members(issue, members)
-        items.append(_theme_to_showcase_item(theme))
+        items.append(
+            _theme_to_showcase_item(
+                theme,
+                outcome=str(issue.get("outcome") or "").strip() or None,
+            )
+        )
 
     items.sort(key=lambda item: item.get("publishedAt") or "", reverse=True)
     return items
 
 
-def _theme_to_showcase_item(theme: dict[str, Any]) -> dict[str, Any]:
+def _theme_to_showcase_item(
+    theme: dict[str, Any],
+    *,
+    outcome: str | None = None,
+) -> dict[str, Any]:
     title = (theme.get("topic") or "").strip() or (theme.get("description") or "").strip()[:80]
     if not title:
         title = "Citizen issue resolved"
+    display_outcome = (outcome or "").strip() or title
     completed = theme.get("completedAt") or theme.get("createdAt")
     published_at = completed[:10] if isinstance(completed, str) and completed else None
     issue_type = str(theme.get("issueType") or "")
@@ -201,7 +211,7 @@ def _theme_to_showcase_item(theme: dict[str, Any]) -> dict[str, Any]:
         "geo": {"x": 50, "y": 50},
         "sampleQuotes": theme.get("sampleQuotes") or [],
         "relayShare": float(theme.get("relayShare") or 0),
-        "outcome": title,
+        "outcome": display_outcome,
         "publishedAt": published_at,
         "isLiveSubmission": True,
     }
@@ -253,7 +263,12 @@ def get_subscribers(issue_id: str) -> list[dict[str, Any]]:
     return list_issue_subscribers(issue_id)
 
 
-def patch_issue_status(issue_id: str, status: str) -> dict[str, Any]:
+def patch_issue_status(
+    issue_id: str,
+    status: str,
+    *,
+    outcome: str | None = None,
+) -> dict[str, Any]:
     allowed = {"Open", "Work in Progress", "Completed"}
     if status not in allowed:
         raise ValueError(f"Status must be one of: {', '.join(sorted(allowed))}")
@@ -262,7 +277,7 @@ def patch_issue_status(issue_id: str, status: str) -> dict[str, Any]:
     if not issue:
         raise LookupError("Issue not found")
 
-    updated = update_issue_status(issue_id, status)
+    updated = update_issue_status(issue_id, status, outcome=outcome)
     return updated
 
 

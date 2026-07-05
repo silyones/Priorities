@@ -127,6 +127,7 @@ class SubmissionAnalysisBody(BaseModel):
 
 class IssueStatusBody(BaseModel):
     status: Literal["Open", "Work in Progress", "Completed"]
+    outcome: str | None = None
 
 
 def _runtime_error_status(message: str, firebase: bool = False) -> int:
@@ -338,7 +339,12 @@ async def patch_issue_status_endpoint(
         if not before:
             raise HTTPException(status_code=404, detail="Issue not found")
 
-        updated = await asyncio.to_thread(patch_issue_status, issue_id, body.status)
+        updated = await asyncio.to_thread(
+            patch_issue_status,
+            issue_id,
+            body.status,
+            outcome=body.outcome,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LookupError as exc:

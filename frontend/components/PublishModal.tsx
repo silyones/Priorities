@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Megaphone, X } from "lucide-react";
 import type { Cluster } from "@/lib/types";
 
@@ -9,12 +9,20 @@ export function PublishModal({
   cluster,
   onClose,
   onConfirm,
+  publishing = false,
+  error = null,
 }: {
   cluster: Cluster | null;
   onClose: () => void;
-  onConfirm: (outcome: string) => void;
+  onConfirm: (outcome: string) => void | Promise<void>;
+  publishing?: boolean;
+  error?: string | null;
 }) {
   const [outcome, setOutcome] = useState("");
+
+  useEffect(() => {
+    if (!cluster) setOutcome("");
+  }, [cluster]);
 
   return (
     <AnimatePresence>
@@ -63,15 +71,23 @@ export function PublishModal({
               {cluster.affected.toLocaleString("en-IN")} residents.
             </div>
 
+            {error && (
+              <p className="mt-4 rounded-xl border border-tag-red-text/30 bg-tag-red-bg px-3 py-2 text-sm text-tag-red-text">
+                {error}
+              </p>
+            )}
+
             <div className="mt-5 flex gap-2">
               <button
-                disabled={outcome.trim().length < 4}
-                onClick={() => onConfirm(outcome.trim())}
+                disabled={outcome.trim().length < 4 || publishing}
+                onClick={() => void onConfirm(outcome.trim())}
                 className="btn-accent flex-1 disabled:opacity-40"
               >
-                Publish to showcase
+                {publishing ? "Publishing…" : "Publish to showcase"}
               </button>
-              <button onClick={onClose} className="btn-ghost">Cancel</button>
+              <button onClick={onClose} disabled={publishing} className="btn-ghost">
+                Cancel
+              </button>
             </div>
           </motion.div>
         </motion.div>
