@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
@@ -34,14 +34,12 @@ from issue_service import (
     issues_for_heatmap,
     issues_to_themes,
     patch_issue_status,
-    subscribers_for_notification,
 )
 from location_service import resolve_display_location
 from mp_auth import require_mp_api_key
 from phone_utils import parse_phone_number
 from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
-from twilio_service import notify_issue_subscribers
 from ts_bridge import warm_bridge
 
 load_dotenv()
@@ -327,26 +325,10 @@ async def get_issue_subscribers_endpoint(
         ) from exc
 
 
-def _notify_issue_status_subscribers(
-    issue_id: str,
-    status: str,
-    topic: str,
-) -> None:
-    phones = subscribers_for_notification(issue_id)
-    notify_issue_subscribers(
-        issue_id=issue_id,
-        status=status,
-        topic=topic,
-        phone_numbers=phones,
-    )
-    update_issue_status(issue_id, status, last_notified_status=status)
-
-
 @app.patch("/api/issues/{issue_id}/status")
 async def patch_issue_status_endpoint(
     issue_id: str,
     body: IssueStatusBody,
-    background_tasks: BackgroundTasks,
     _: None = Depends(require_mp_api_key),
 ) -> dict[str, Any]:
     try:
@@ -373,16 +355,11 @@ async def patch_issue_status_endpoint(
 
     last_notified = before.get("lastNotifiedStatus")
     if body.status in NOTIFY_STATUSES and body.status != last_notified:
-        try:
-            detail = await asyncio.to_thread(get_issue_detail, issue_id)
-            topic = str(detail.get("topic") or detail.get("description") or "")
-        except LookupError:
-            topic = ""
-        background_tasks.add_task(
-            _notify_issue_status_subscribers,
+        await asyncio.to_thread(
+            update_issue_status,
             issue_id,
             body.status,
-            topic,
+            last_notified_status=body.status,
         )
 
     return {"ok": True, "issue": updated}
