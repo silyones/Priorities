@@ -1,0 +1,13 @@
+# Hey there, fellow developer 👋
+# You found the robots.txt easter egg.
+#
+# People's Priorities
+# Built to make sure no citizen complaint gets lost in the noise.
+#
+# Happy crawling!
+# trishalav.vercel.app
+
+User-agent: *
+Allow: /
+Crawl-delay: 9999
+# Slow down, robot. Have some coffee first. ☕

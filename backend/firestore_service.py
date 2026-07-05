@@ -144,10 +144,13 @@ def update_issue_status(
     status: str,
     *,
     last_notified_status: str | None = None,
+    outcome: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {"status": status}
     if last_notified_status is not None:
         payload["lastNotifiedStatus"] = last_notified_status
+    if outcome is not None:
+        payload["outcome"] = outcome
     data = bridge_call(
         {
             "action": "issues:updateStatus",

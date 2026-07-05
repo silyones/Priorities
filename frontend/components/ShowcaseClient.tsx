@@ -163,8 +163,11 @@ function ShowcaseCard({
           </div>
         </div>
         <h3 className="mt-4 text-xl font-bold leading-snug text-ink">
-          {cluster.outcome ?? cluster.title}
+          {cluster.title}
         </h3>
+        {cluster.outcome && cluster.outcome !== cluster.title && (
+          <p className="mt-2 text-sm font-medium text-ink">{cluster.outcome}</p>
+        )}
         <p className="mt-3 text-sm text-ink-muted">
           Based on requests from{" "}
           <span className="font-semibold text-ink">

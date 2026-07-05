@@ -20,11 +20,14 @@ import {
   fetchSubmissionThemes,
   isLiveSubmissionCluster,
 } from "@/lib/submissions";
+import { patchIssueStatus } from "@/lib/issues";
 
 export function MpTriageClient() {
   const [deck, setDeck] = useState<Cluster[]>([]);
   const [actedCount, setActedCount] = useState(0);
   const [publishTarget, setPublishTarget] = useState<Cluster | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
   const total = useMemo(() => deck.length + actedCount, [deck.length, actedCount]);
@@ -75,14 +78,26 @@ export function MpTriageClient() {
     });
   }
 
-  function confirmPublish(outcome: string) {
-    if (!publishTarget) return;
-    if (!isLiveSubmissionCluster(publishTarget)) {
+  async function confirmPublish(outcome: string) {
+    if (!publishTarget || publishing) return;
+    setPublishing(true);
+    setPublishError(null);
+
+    if (isLiveSubmissionCluster(publishTarget)) {
+      const result = await patchIssueStatus(publishTarget.id, "Completed", { outcome });
+      if (!result.ok) {
+        setPublishError(result.error);
+        setPublishing(false);
+        return;
+      }
+    } else {
       patchCluster(publishTarget, { publish: { outcome } });
     }
+
     setDeck((d) => d.filter((c) => c.id !== publishTarget.id));
     setActedCount((c) => c + 1);
     setPublishTarget(null);
+    setPublishing(false);
   }
 
   const done = deck.length === 0;
@@ -200,8 +215,14 @@ export function MpTriageClient() {
 
       <PublishModal
         cluster={publishTarget}
-        onClose={() => setPublishTarget(null)}
+        onClose={() => {
+          if (publishing) return;
+          setPublishTarget(null);
+          setPublishError(null);
+        }}
         onConfirm={confirmPublish}
+        publishing={publishing}
+        error={publishError}
       />
     </motion.div>
   );

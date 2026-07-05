@@ -22,6 +22,7 @@ from theme_service import (
     should_merge_submissions,
     submission_match_score,
 )
+from location_service import latest_submission_with_location
 
 NOTIFY_STATUSES = {"Work in Progress", "Completed"}
 
@@ -103,6 +104,72 @@ def _safe_generate_title(topic: str, description: str) -> str:
         return (base[:77].rstrip() + "…") if len(base) > 80 else (base or "Citizen issue")
 
 
+def _coords_from_location_value(location: Any) -> tuple[float, float] | None:
+    """Parse lat/lng from an issue `location` field (map or GeoPoint-shaped dict)."""
+    if not location or not isinstance(location, dict):
+        return None
+    lat = location.get("lat", location.get("latitude", location.get("_latitude")))
+    lng = location.get("lng", location.get("longitude", location.get("_longitude")))
+    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+        return float(lat), float(lng)
+    return None
+
+
+def _resolve_issue_coordinates(
+    issue: dict[str, Any],
+    submissions_by_id: dict[str, dict[str, Any]],
+) -> tuple[float, float] | None:
+    """Prefer persisted issue.location; fall back to linked submission GPS."""
+    coords = _coords_from_location_value(issue.get("location"))
+    if coords:
+        return coords
+
+    members = [
+        submissions_by_id[sid]
+        for sid in issue.get("submissionIds", [])
+        if sid in submissions_by_id
+    ]
+    source = latest_submission_with_location(members)
+    if not source:
+        return None
+    lat = source.get("latitude")
+    lng = source.get("longitude")
+    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+        return float(lat), float(lng)
+    return None
+
+
+def issues_for_heatmap() -> list[dict[str, Any]]:
+    """All persisted issues with valid coordinates for the insights heatmap."""
+    issues, submissions = list_themes_source_data()
+    if not issues:
+        return []
+
+    by_id = {s["id"]: s for s in submissions if s.get("id")}
+    items: list[dict[str, Any]] = []
+
+    for issue in issues:
+        coords = _resolve_issue_coordinates(issue, by_id)
+        if not coords:
+            continue
+        lat, lng = coords
+        submission_ids = issue.get("submissionIds") or []
+        voices = len(submission_ids) if isinstance(submission_ids, list) else 0
+        title = (issue.get("aiTitle") or issue.get("repTopic") or "").strip()
+        items.append(
+            {
+                "id": issue["id"],
+                "lat": lat,
+                "lng": lng,
+                "weight": max(1, voices),
+                "title": title or "Citizen issue",
+                "status": str(issue.get("status") or "Open"),
+            }
+        )
+
+    return items
+
+
 def issues_to_themes(*, include_completed: bool = False) -> list[dict[str, Any]]:
     """Read persisted issues and shape them like GET /api/submissions/themes."""
     issues, submissions = list_themes_source_data()
@@ -155,16 +222,26 @@ def completed_issues_for_showcase() -> list[dict[str, Any]]:
         if not members:
             continue
         theme = _theme_from_issue_and_members(issue, members)
-        items.append(_theme_to_showcase_item(theme))
+        items.append(
+            _theme_to_showcase_item(
+                theme,
+                outcome=str(issue.get("outcome") or "").strip() or None,
+            )
+        )
 
     items.sort(key=lambda item: item.get("publishedAt") or "", reverse=True)
     return items
 
 
-def _theme_to_showcase_item(theme: dict[str, Any]) -> dict[str, Any]:
+def _theme_to_showcase_item(
+    theme: dict[str, Any],
+    *,
+    outcome: str | None = None,
+) -> dict[str, Any]:
     title = (theme.get("topic") or "").strip() or (theme.get("description") or "").strip()[:80]
     if not title:
         title = "Citizen issue resolved"
+    display_outcome = (outcome or "").strip() or title
     completed = theme.get("completedAt") or theme.get("createdAt")
     published_at = completed[:10] if isinstance(completed, str) and completed else None
     issue_type = str(theme.get("issueType") or "")
@@ -201,7 +278,7 @@ def _theme_to_showcase_item(theme: dict[str, Any]) -> dict[str, Any]:
         "geo": {"x": 50, "y": 50},
         "sampleQuotes": theme.get("sampleQuotes") or [],
         "relayShare": float(theme.get("relayShare") or 0),
-        "outcome": title,
+        "outcome": display_outcome,
         "publishedAt": published_at,
         "isLiveSubmission": True,
     }
@@ -253,7 +330,12 @@ def get_subscribers(issue_id: str) -> list[dict[str, Any]]:
     return list_issue_subscribers(issue_id)
 
 
-def patch_issue_status(issue_id: str, status: str) -> dict[str, Any]:
+def patch_issue_status(
+    issue_id: str,
+    status: str,
+    *,
+    outcome: str | None = None,
+) -> dict[str, Any]:
     allowed = {"Open", "Work in Progress", "Completed"}
     if status not in allowed:
         raise ValueError(f"Status must be one of: {', '.join(sorted(allowed))}")
@@ -262,7 +344,7 @@ def patch_issue_status(issue_id: str, status: str) -> dict[str, Any]:
     if not issue:
         raise LookupError("Issue not found")
 
-    updated = update_issue_status(issue_id, status)
+    updated = update_issue_status(issue_id, status, outcome=outcome)
     return updated
 
 
