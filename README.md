@@ -1,10 +1,14 @@
-<p align="center">
-  <img src="icon/logo.png" alt="People's Priorities logo" width="280" />
-</p>
-
-<h1 align="center">People's Priorities</h1>
-
-<p align="center"><em>Turn scattered citizen voices into ranked, actionable demand — for representatives who govern with evidence.</em></p>
+<table>
+  <tr>
+    <td>
+      <h1>People's Priorities</h1>
+      <p><em>Turn scattered citizen voices into ranked, actionable demand — for representatives who govern with evidence.</em></p>
+    </td>
+    <td align="right" valign="middle">
+      <img src="icon/logo.png" alt="People's Priorities logo" width="140" />
+    </td>
+  </tr>
+</table>
 
 ---
 
