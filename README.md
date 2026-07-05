@@ -58,20 +58,6 @@ The platform serves two audiences: **citizens** who submit and track local issue
 
 ---
 
-## Screenshots / Demo
-
-_Screenshots and a live demo link will be added here._
-
-| View | Description |
-|------|-------------|
-| Citizen submit | Voice, text, and photo issue reporting |
-| MP Dashboard | Live-ranked priority themes |
-| MP Triage | Card-based theme actioning |
-| Public Showcase | Published completed outcomes |
-| Insights heatmap | Geographic demand visualization |
-
----
-
 ## Roadmap
 
 - **Citizen notifications** — outbound SMS or WhatsApp alerts when issue status changes
