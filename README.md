@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon/logo.png" alt="People's Priorities logo" width="120" />
+  <img src="icon/logo.png" alt="People's Priorities logo" width="280" />
 </p>
 
 <h1 align="center">People's Priorities</h1>
