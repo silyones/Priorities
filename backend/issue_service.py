@@ -22,6 +22,7 @@ from theme_service import (
     should_merge_submissions,
     submission_match_score,
 )
+from location_service import latest_submission_with_location
 
 NOTIFY_STATUSES = {"Work in Progress", "Completed"}
 
@@ -101,6 +102,72 @@ def _safe_generate_title(topic: str, description: str) -> str:
         base = (topic or "").strip() or (description or "").strip()
         base = " ".join(base.split())
         return (base[:77].rstrip() + "…") if len(base) > 80 else (base or "Citizen issue")
+
+
+def _coords_from_location_value(location: Any) -> tuple[float, float] | None:
+    """Parse lat/lng from an issue `location` field (map or GeoPoint-shaped dict)."""
+    if not location or not isinstance(location, dict):
+        return None
+    lat = location.get("lat", location.get("latitude", location.get("_latitude")))
+    lng = location.get("lng", location.get("longitude", location.get("_longitude")))
+    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+        return float(lat), float(lng)
+    return None
+
+
+def _resolve_issue_coordinates(
+    issue: dict[str, Any],
+    submissions_by_id: dict[str, dict[str, Any]],
+) -> tuple[float, float] | None:
+    """Prefer persisted issue.location; fall back to linked submission GPS."""
+    coords = _coords_from_location_value(issue.get("location"))
+    if coords:
+        return coords
+
+    members = [
+        submissions_by_id[sid]
+        for sid in issue.get("submissionIds", [])
+        if sid in submissions_by_id
+    ]
+    source = latest_submission_with_location(members)
+    if not source:
+        return None
+    lat = source.get("latitude")
+    lng = source.get("longitude")
+    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+        return float(lat), float(lng)
+    return None
+
+
+def issues_for_heatmap() -> list[dict[str, Any]]:
+    """All persisted issues with valid coordinates for the insights heatmap."""
+    issues, submissions = list_themes_source_data()
+    if not issues:
+        return []
+
+    by_id = {s["id"]: s for s in submissions if s.get("id")}
+    items: list[dict[str, Any]] = []
+
+    for issue in issues:
+        coords = _resolve_issue_coordinates(issue, by_id)
+        if not coords:
+            continue
+        lat, lng = coords
+        submission_ids = issue.get("submissionIds") or []
+        voices = len(submission_ids) if isinstance(submission_ids, list) else 0
+        title = (issue.get("aiTitle") or issue.get("repTopic") or "").strip()
+        items.append(
+            {
+                "id": issue["id"],
+                "lat": lat,
+                "lng": lng,
+                "weight": max(1, voices),
+                "title": title or "Citizen issue",
+                "status": str(issue.get("status") or "Open"),
+            }
+        )
+
+    return items
 
 
 def issues_to_themes(*, include_completed: bool = False) -> list[dict[str, Any]]:

@@ -31,6 +31,7 @@ from issue_service import (
     completed_issues_for_showcase,
     get_issue_detail,
     get_subscribers,
+    issues_for_heatmap,
     issues_to_themes,
     patch_issue_status,
     subscribers_for_notification,
@@ -275,6 +276,20 @@ async def get_submission_themes() -> list[dict[str, Any]]:
             status_code=_runtime_error_status(message, firebase=True),
             detail=message,
         ) from exc
+
+
+@app.get("/api/issues/heatmap")
+async def get_issues_heatmap() -> dict[str, Any]:
+    """Geo points for the insights heatmap (issues with valid lat/lng only)."""
+    try:
+        items = await asyncio.to_thread(issues_for_heatmap)
+    except RuntimeError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=_runtime_error_status(message, firebase=True),
+            detail=message,
+        ) from exc
+    return {"items": items}
 
 
 @app.get("/api/issues/{issue_id}")

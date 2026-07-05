@@ -20,6 +20,7 @@ export type IssueRecord = {
   createdAt: string | null;
   completedAt: string | null;
   outcome: string | null;
+  location: { lat: number; lng: number } | null;
 };
 
 export type SubscriberRecord = {
@@ -38,6 +39,26 @@ function serializeTimestamp(value: unknown): string | null {
     return (value as { toDate: () => Date }).toDate().toISOString();
   }
   if (typeof value === "string") return value;
+  return null;
+}
+
+function parseIssueLocation(data: DocumentData): { lat: number; lng: number } | null {
+  const loc = data.location;
+  if (!loc || typeof loc !== "object") return null;
+
+  if ("latitude" in loc && "longitude" in loc) {
+    const gp = loc as { latitude: unknown; longitude: unknown };
+    if (typeof gp.latitude === "number" && typeof gp.longitude === "number") {
+      return { lat: gp.latitude, lng: gp.longitude };
+    }
+  }
+
+  const record = loc as Record<string, unknown>;
+  const lat = record.lat ?? record.latitude;
+  const lng = record.lng ?? record.longitude;
+  if (typeof lat === "number" && typeof lng === "number") {
+    return { lat, lng };
+  }
   return null;
 }
 
@@ -62,6 +83,7 @@ function serializeIssue(docSnap: QueryDocumentSnapshot<DocumentData>): IssueReco
     createdAt: serializeTimestamp(data.createdAt),
     completedAt: serializeTimestamp(data.completedAt),
     outcome: typeof data.outcome === "string" && data.outcome.trim() ? data.outcome.trim() : null,
+    location: parseIssueLocation(data),
   };
 }
 
