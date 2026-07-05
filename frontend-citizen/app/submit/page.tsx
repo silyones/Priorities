@@ -79,6 +79,7 @@ const COPY: Record<
     topicLabel: string;
     topicPlaceholder: string;
     useCurrentLocation: string;
+    locationLoading: string;
   }
 > = {
   english: {
@@ -106,6 +107,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "Type what they told you, in their own words",
     addPhoto: "Add photo",
     useCurrentLocation: "Use my current location",
+    locationLoading: "Getting location…",
     remove: "Remove",
     locationAdded: "Location added",
     manualAreaLabel: "Or type your area",
@@ -155,6 +157,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "उन्होंने आपको जो बताया, उसे उनके अपने शब्दों में टाइप करें",
     addPhoto: "फोटो जोड़ें",
     useCurrentLocation: "मेरा वर्तमान स्थान उपयोग करें",
+    locationLoading: "स्थान प्राप्त हो रहा है…",
     remove: "हटाएं",
     locationAdded: "स्थान जोड़ा गया",
     manualAreaLabel: "या अपना क्षेत्र टाइप करें",
@@ -205,6 +208,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "ಅವರು ನಿಮಗೆ ಹೇಳಿದ್ದನ್ನು ಅವರ ಸ್ವಂತ ಮಾತುಗಳಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ",
     addPhoto: "ಫೋಟೋ ಸೇರಿಸಿ",
     useCurrentLocation: "ನನ್ನ ಪ್ರಸ್ತುತ ಸ್ಥಳವನ್ನು ಬಳಸಿ",
+    locationLoading: "ಸ್ಥಳ ಪಡೆಯಲಾಗುತ್ತಿದೆ…",
     remove: "ತೆಗೆದುಹಾಕಿ",
     locationAdded: "ಸ್ಥಳ ಸೇರಿಸಲಾಗಿದೆ",
     manualAreaLabel: "ಅಥವಾ ನಿಮ್ಮ ಪ್ರದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ",
@@ -255,6 +259,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "அவர்கள் உங்களிடம் சொன்னதை, அவர்களின் சொந்த வார்த்தைகளில் தட்டச்சு செய்யுங்கள்",
     addPhoto: "புகைப்படம் சேர்க்கவும்",
     useCurrentLocation: "எனது தற்போதைய இருப்பிடத்தைப் பயன்படுத்தவும்",
+    locationLoading: "இருப்பிடம் பெறப்படுகிறது…",
     remove: "அகற்று",
     locationAdded: "இருப்பிடம் சேர்க்கப்பட்டது",
     manualAreaLabel: "அல்லது உங்கள் பகுதியை தட்டச்சு செய்யுங்கள்",
@@ -305,6 +310,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "వారు మీకు చెప్పింది వారి సొంత మాటల్లో టైప్ చేయండి",
     addPhoto: "ఫోటో జోడించండి",
     useCurrentLocation: "నా ప్రస్తుత స్థానాన్ని ఉపయోగించండి",
+    locationLoading: "స్థానం పొందుతోంది…",
     remove: "తీసివేయండి",
     locationAdded: "స్థానం జోడించబడింది",
     manualAreaLabel: "లేదా మీ ప్రాంతాన్ని టైప్ చేయండి",
@@ -355,6 +361,7 @@ const COPY: Record<
     textareaPlaceholderRelay: "তারা আপনাকে যা বলেছে তা তাদের নিজের ভাষায় টাইপ করুন",
     addPhoto: "ছবি যোগ করুন",
     useCurrentLocation: "আমার বর্তমান অবস্থান ব্যবহার করুন",
+    locationLoading: "অবস্থান পাওয়া হচ্ছে…",
     remove: "সরান",
     locationAdded: "অবস্থান যোগ করা হয়েছে",
     manualAreaLabel: "অথবা আপনার এলাকা টাইপ করুন",
@@ -413,6 +420,8 @@ export default function SubmitPage() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
   const [audioBase64, setAudioBase64] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const locatingRef = useRef(false);
   const [manualArea, setManualArea] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -556,22 +565,53 @@ export default function SubmitPage() {
     setPhotoPreviewUrl(URL.createObjectURL(file));
   }
 
-  function requestCurrentLocation() {
+  function getGeolocationPosition(options: PositionOptions): Promise<GeolocationPosition> {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  }
+
+  async function requestCurrentLocation() {
+    if (locatingRef.current) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setShowManualArea(true);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
-        setShowManualArea(false);
-      },
-      () => {
+
+    locatingRef.current = true;
+    setLocating(true);
+
+    const applyPosition = (position: GeolocationPosition) => {
+      setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+      setShowManualArea(false);
+    };
+
+    try {
+      // Fast network/cached fix first — works on desktop and after permission grant.
+      applyPosition(
+        await getGeolocationPosition({
+          enableHighAccuracy: false,
+          timeout: 12000,
+          maximumAge: 300000,
+        }),
+      );
+    } catch {
+      try {
+        applyPosition(
+          await getGeolocationPosition({
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0,
+          }),
+        );
+      } catch {
         setCoords(null);
         setShowManualArea(true);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    );
+      }
+    } finally {
+      locatingRef.current = false;
+      setLocating(false);
+    }
   }
 
   return (
@@ -728,11 +768,21 @@ export default function SubmitPage() {
 
                       <button
                         type="button"
-                        onClick={requestCurrentLocation}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/40"
+                        onClick={() => void requestCurrentLocation()}
+                        disabled={locating}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-white px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/40 disabled:cursor-wait disabled:opacity-70"
                       >
-                        <MapPin className="h-3.5 w-3.5" />
-                        {copy.useCurrentLocation}
+                        {locating ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                            {copy.locationLoading}
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-3.5 w-3.5" />
+                            {copy.useCurrentLocation}
+                          </>
+                        )}
                       </button>
                     </div>
 
