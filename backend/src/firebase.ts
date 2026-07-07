@@ -8,6 +8,15 @@ if (!process.env.FIRESTORE_PREFER_REST) {
 }
 
 let adminApp: App | undefined;
+let firestoreDb: Firestore | undefined;
+
+function parseServiceAccount(raw: string): object {
+  const data = JSON.parse(raw) as { private_key?: string };
+  if (typeof data.private_key === "string") {
+    data.private_key = data.private_key.replace(/\\n/g, "\n");
+  }
+  return data;
+}
 
 function initAdminApp(): App {
   if (adminApp) return adminApp;
@@ -20,18 +29,18 @@ function initAdminApp(): App {
   const jsonPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
 
-  if (jsonInline) {
+  if (jsonPath) {
+    const raw = fs.readFileSync(jsonPath, "utf8");
     adminApp = initializeApp({
-      credential: cert(JSON.parse(jsonInline) as object),
+      credential: cert(parseServiceAccount(raw)),
       projectId,
     });
     return adminApp;
   }
 
-  if (jsonPath) {
-    const raw = fs.readFileSync(jsonPath, "utf8");
+  if (jsonInline) {
     adminApp = initializeApp({
-      credential: cert(JSON.parse(raw) as object),
+      credential: cert(parseServiceAccount(jsonInline)),
       projectId,
     });
     return adminApp;
@@ -43,5 +52,11 @@ function initAdminApp(): App {
 }
 
 export function getFirestoreDb(): Firestore {
-  return getFirestore(initAdminApp());
+  if (firestoreDb) return firestoreDb;
+
+  const db = getFirestore(initAdminApp());
+  // Env var alone is not always enough — explicitly force REST before any query.
+  db.settings({ preferRest: true });
+  firestoreDb = db;
+  return firestoreDb;
 }
