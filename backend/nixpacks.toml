@@ -3,9 +3,14 @@ nixPkgs = ["python313", "nodejs_20"]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt",
-  "npm install"
+  "python -m venv /opt/venv",
+  "/opt/venv/bin/pip install -r requirements.txt",
+  "npm install --include=dev",
+  "npx tsc -p tsconfig.json"
 ]
 
+[variables]
+FIRESTORE_PREFER_REST = "true"
+
 [start]
-cmd = "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "/opt/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port $PORT"

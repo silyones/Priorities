@@ -6,6 +6,7 @@
     "predev": "python scripts/kill_port.py 3001",
     "dev": "python scripts/run_dev.py",
     "stop": "python scripts/kill_port.py 3001 --all",
+    "build": "tsc -p tsconfig.json",
     "start": "python -m uvicorn main:app --host 127.0.0.1 --port 3001"
   },
   "dependencies": {
