@@ -2,6 +2,11 @@ import fs from "fs";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
+// gRPC Firestore can hang on some container hosts (e.g. Railway). Prefer REST there.
+if (!process.env.FIRESTORE_PREFER_REST) {
+  process.env.FIRESTORE_PREFER_REST = "true";
+}
+
 let adminApp: App | undefined;
 
 function initAdminApp(): App {
