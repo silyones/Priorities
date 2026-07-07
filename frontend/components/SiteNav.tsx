@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Menu, X, LayoutDashboard, Layers, Megaphone, FlaskConical, ChevronDown } from "lucide-react";
+import {
+  Menu,
+  X,
+  LayoutDashboard,
+  Layers,
+  Megaphone,
+  FlaskConical,
+  ChevronDown,
+  LogOut,
+} from "lucide-react";
 import { Logo } from "./Logo";
 import {
   TRANSLATE_LANGUAGES,
@@ -11,18 +20,22 @@ import {
   getStoredLanguage,
   type TranslateCode,
 } from "./GoogleTranslate";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 const LINKS = [
-  { href: "/",         label: "Dashboard", icon: LayoutDashboard },
-  { href: "/mp",       label: "MP Triage", icon: Layers         },
-  { href: "/showcase", label: "Showcase",  icon: Megaphone      },
-  { href: "/insights", label: "Insights",  icon: FlaskConical   },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/mp", label: "MP Triage", icon: Layers },
+  { href: "/showcase", label: "Showcase", icon: Megaphone },
+  { href: "/insights", label: "Insights", icon: FlaskConical },
 ];
 
 export function SiteNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<TranslateCode>("en");
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -36,6 +49,19 @@ export function SiteNav() {
     setLanguage(next);
     changeTranslateLanguage(next);
   }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace("/");
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  const displayEmail = user?.email ?? "MP Office";
+  const initial = displayEmail.charAt(0).toUpperCase();
 
   return (
     <header className="no-print sticky top-0 z-50 border-b border-border-subtle bg-cream/95 backdrop-blur-md">
@@ -83,10 +109,21 @@ export function SiteNav() {
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-white px-3 py-1.5">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-ink">
-              M
+              {initial}
             </span>
-            <span className="text-xs font-medium text-ink">Rajgarh · MP Office</span>
+            <span className="max-w-[140px] truncate text-xs font-medium text-ink">
+              {displayEmail}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={signingOut}
+            className="btn-ghost !rounded-lg !px-3 !py-1.5 text-xs disabled:opacity-60"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign out
+          </button>
         </div>
 
         <button
@@ -118,6 +155,15 @@ export function SiteNav() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={signingOut}
+            className="mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-ink hover:bg-surface-white disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       )}
     </header>

@@ -205,7 +205,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
       <div className="min-h-screen bg-cream px-5 py-10 sm:px-8">
         <div className="mx-auto max-w-2xl">
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -236,7 +236,7 @@ export function IssueBriefClient({ submissionId: submissionIdProp }: { submissio
       <motion.div variants={up} className="border-b border-border-subtle px-5 py-5 sm:px-8">
         <div className="mx-auto max-w-5xl">
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" />

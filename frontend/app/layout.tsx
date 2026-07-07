@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { SiteNav } from "@/components/SiteNav";
 import { SplashScreen } from "@/components/SplashScreen";
-import { GoogleTranslate } from "@/components/GoogleTranslate";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,10 +33,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body className="min-h-screen antialiased">
-        <SplashScreen />
-        <GoogleTranslate />
-        <SiteNav />
-        <main>{children}</main>
+        <AuthProvider>
+          <SplashScreen />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
