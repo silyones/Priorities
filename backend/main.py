@@ -40,8 +40,9 @@ from mp_auth import require_mp_api_key
 from phone_utils import parse_phone_number
 from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
+from firestore_service import list_submissions
 from firebase_bootstrap import materialize_firebase_credentials
-from ts_bridge import bridge_call, warm_bridge
+from ts_bridge import warm_bridge
 
 load_dotenv()
 materialize_firebase_credentials()
@@ -63,13 +64,21 @@ CORS_ORIGINS = [
 ]
 
 
+def _use_firestore_rest() -> bool:
+    mode = os.getenv("FIRESTORE_USE_REST", "auto").lower()
+    if mode == "true":
+        return True
+    if mode == "false":
+        return False
+    return bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_SERVICE_ID"))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    await asyncio.to_thread(warm_bridge)
+    if not _use_firestore_rest():
+        await asyncio.to_thread(warm_bridge)
     try:
-        count = await asyncio.to_thread(
-            lambda: len(bridge_call({"action": "firestore:list"}) or [])
-        )
+        count = await asyncio.to_thread(lambda: len(list_submissions()))
         logger.info("Firestore warmup ok — %s submissions visible", count)
     except Exception as exc:
         logger.error("Firestore warmup failed: %s", exc)

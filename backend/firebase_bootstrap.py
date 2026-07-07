@@ -11,6 +11,7 @@ from typing import Any
 logger = logging.getLogger("priorities.firebase")
 
 _CREDENTIALS_PATH = os.path.join(tempfile.gettempdir(), "firebase-service-account.json")
+_cached_account: dict[str, Any] | None = None
 
 
 def _normalize_service_account(data: dict[str, Any]) -> dict[str, Any]:
@@ -20,16 +21,45 @@ def _normalize_service_account(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _load_service_account_dict() -> dict[str, Any]:
+    raw = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if raw:
+        return _normalize_service_account(json.loads(raw))
+
+    path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "").strip()
+    if path and os.path.isfile(path):
+        with open(path, encoding="utf-8") as handle:
+            return _normalize_service_account(json.loads(handle.read()))
+
+    raise RuntimeError(
+        "Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON "
+        "or FIREBASE_SERVICE_ACCOUNT_PATH."
+    )
+
+
+def get_service_account_info() -> dict[str, Any]:
+    global _cached_account
+    if _cached_account is None:
+        _cached_account = _load_service_account_dict()
+    return _cached_account
+
+
+def get_project_id() -> str:
+    explicit = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    if explicit:
+        return explicit
+    project_id = get_service_account_info().get("project_id")
+    if isinstance(project_id, str) and project_id.strip():
+        return project_id.strip()
+    raise RuntimeError("FIREBASE_PROJECT_ID is not configured.")
+
+
 def materialize_firebase_credentials() -> None:
     """Write inline JSON to a file so Node/Python read a valid key with real newlines."""
-    raw = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
-    if not raw:
-        return
-
     try:
-        data = _normalize_service_account(json.loads(raw))
-    except json.JSONDecodeError as exc:
-        logger.error("Invalid FIREBASE_SERVICE_ACCOUNT_JSON — cannot parse: %s", exc)
+        data = _load_service_account_dict()
+    except (RuntimeError, json.JSONDecodeError) as exc:
+        logger.error("Firebase credentials unavailable: %s", exc)
         return
 
     try:
