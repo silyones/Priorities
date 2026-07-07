@@ -152,7 +152,13 @@ def bridge_call(request: dict[str, Any]) -> Any:
         with _worker_lock:
             try:
                 return _bridge_call_once(wire_request, payload_path)
-            except (RuntimeError, json.JSONDecodeError):
+            except json.JSONDecodeError:
+                _reset_worker()
+                return _bridge_call_once(wire_request, payload_path)
+            except RuntimeError as exc:
+                # Do not retry timeouts — that doubles wait time (60s + 60s).
+                if "timed out" in str(exc).lower():
+                    raise
                 _reset_worker()
                 return _bridge_call_once(wire_request, payload_path)
     finally:

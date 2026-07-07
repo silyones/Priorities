@@ -40,9 +40,11 @@ from mp_auth import require_mp_api_key
 from phone_utils import parse_phone_number
 from sarvam_service import parse_audio_data_url, transcribe_audio
 from store_service import act_on_cluster, get_clusters, get_showcase, submit_voice
-from ts_bridge import warm_bridge
+from firebase_bootstrap import materialize_firebase_credentials
+from ts_bridge import bridge_call, warm_bridge
 
 load_dotenv()
+materialize_firebase_credentials()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("priorities")
@@ -64,6 +66,13 @@ CORS_ORIGINS = [
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await asyncio.to_thread(warm_bridge)
+    try:
+        count = await asyncio.to_thread(
+            lambda: len(bridge_call({"action": "firestore:list"}) or [])
+        )
+        logger.info("Firestore warmup ok — %s submissions visible", count)
+    except Exception as exc:
+        logger.error("Firestore warmup failed: %s", exc)
     yield
 
 app = FastAPI(title="People's Priorities API", lifespan=lifespan)
